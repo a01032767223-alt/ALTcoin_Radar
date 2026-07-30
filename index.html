@@ -108,6 +108,17 @@
     padding:2px 7px;border-radius:6px;color:var(--txt2)}
   .chip b{color:var(--txt)}
   .invalid{font-size:10.5px;color:var(--txt3);margin-top:8px;font-style:italic}
+  .action-chip{font-size:11px;font-weight:700;padding:3px 9px;border-radius:7px;cursor:help}
+  .principle{font-size:10.5px;color:var(--txt3);margin-top:8px;padding-top:8px;
+    border-top:1px dashed var(--line);line-height:1.5}
+  .horizon-note{font-size:11.5px;color:var(--txt2);background:var(--bg2);border:1px solid var(--line);
+    border-radius:10px;padding:9px 13px;margin-bottom:14px;display:flex;gap:8px;align-items:center}
+  .overlap-warn{font-size:11.5px;color:#f0b878;background:#2a1d15;border:1px solid #6b3f1c;
+    border-radius:10px;padding:10px 13px;margin-bottom:14px}
+  .overlap-warn b{color:#f5c98f}
+  .watch-panel{border:1px solid var(--line);border-radius:14px;background:var(--bg2);padding:14px;margin-bottom:14px}
+  .watch-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+  .watch-row:first-child{border-top:none}
   .star{position:absolute;top:11px;right:11px;font-size:15px;color:var(--txt3);
     background:none;border:none;padding:2px;line-height:1}
   .star.on{color:var(--warm)}
@@ -726,6 +737,67 @@ function explain(x){
       `구성코인의 ${U.fmt(r.breadth7,0)}%가 상승 중입니다.`};
 }
 
+/* 초보자용 행동 라벨(스펙 외 추가) — 매수 추천이 아닌 "검토 강도" 안내.
+   신뢰도·위험·과열·기회점수를 조합해 4단계로 요약. 단정적 동사(매수/매도) 사용 금지. */
+function actionLabel(sc){
+  if(sc.conf<40) return {lv:0,ko:"데이터 부족·관찰만",c:"--txt3",
+    desc:"신뢰도가 낮습니다. 데이터가 더 쌓일 때까지 지켜보는 것을 권합니다."};
+  if(sc.overheat>=60 || sc.risk>=65) return {lv:1,ko:"진입 자제",c:"--dist",
+    desc:"과열되었거나 위험도가 높습니다. 신규 진입보다 기존 보유분 점검을 우선하세요."};
+  if(sc.opp>=68 && sc.risk<45 && sc.overheat<40 && sc.conf>=55) return {lv:3,ko:"확대 검토",c:"--early",
+    desc:"긍정 신호가 여러 지표에서 일관되게 나타납니다. 원칙에 따른 분할 접근을 검토할 만합니다."};
+  if(sc.opp>=50) return {lv:2,ko:"소액 분할 검토",c:"--strong",
+    desc:"긍정적이지만 아직 확신 단계는 아닙니다. 소액으로 나눠 접근하며 무효화 조건을 주시하세요."};
+  return {lv:0,ko:"관찰만",c:"--txt3",desc:"뚜렷한 우위가 보이지 않습니다. 지켜보는 것을 권합니다."};
+}
+function actionChip(sc){
+  const a=actionLabel(sc);
+  return `<span class="action-chip" style="background:${hexA(cv(a.c),.14)};color:${cv(a.c)}" title="${a.desc}">${a.ko}</span>`;
+}
+
+// 코인 시가총액 등급(초보자 리스크 인지용)
+function mcapTier(mcap){
+  if(mcap>=1e13) return {ko:"대형",c:"--teal"};        // ≈1조원 이상(대략, USD 기준 7.5억불)
+  if(mcap>=7.5e8) return {ko:"중형",c:"--warm"};
+  return {ko:"소형",c:"--dist"};
+}
+function mcapChip(mcap){
+  const t=mcapTier(mcap);
+  return `<span class="role" style="background:${hexA(cv(t.c),.14)};color:${cv(t.c)}" title="시가총액 ${U.usd(mcap)}">${t.ko}</span>`;
+}
+
+/* 관심 섹터 등록 시점 대비 성과 추적(6순위) */
+function watchReturn(slug){
+  const meta=getJSON("ar_watch_meta",{})[slug];
+  if(!meta||!RESULT)return null;
+  const secNow=RESULT.sectors.find(x=>x.sec.slug===slug);
+  if(!secNow||!secNow.scores)return null;
+  const syms=Object.keys(meta.prices);
+  const rets=[];
+  syms.forEach(sym=>{
+    const c=secNow.sec.coins.find(cc=>cc.symbol===sym);
+    if(c&&meta.prices[sym])rets.push(U.pct(c.price,meta.prices[sym]));
+  });
+  if(!rets.length)return null;
+  return {ret:U.mean(rets),nCoins:rets.length,at:meta.at,
+    oppAtStar:meta.opp,oppNow:secNow.scores.opp};
+}
+
+/* 섹터 간 코인 중복 경고(3순위) */
+function overlapWarning(scored,watchSlugs){
+  if(watchSlugs.length<2)return null;
+  const starred=scored.filter(x=>watchSlugs.includes(x.sec.slug));
+  const symCount={};
+  starred.forEach(x=>x.sec.coins.forEach(c=>{symCount[c.symbol]=(symCount[c.symbol]||[]).concat?symCount[c.symbol]:[];}));
+  const symSectors={};
+  starred.forEach(x=>x.sec.coins.forEach(c=>{
+    (symSectors[c.symbol]=symSectors[c.symbol]||[]).push(x.sec.ko);
+  }));
+  const dup=Object.entries(symSectors).filter(([,list])=>list.length>1);
+  if(!dup.length)return null;
+  return dup.map(([sym,list])=>({sym,sectors:[...new Set(list)]}));
+}
+
 /* ============================================================================
    RENDER
    ========================================================================== */
@@ -764,6 +836,10 @@ function render(){
 
   app.appendChild(regimeBar(regime));
 
+  // 보유기간 고지(5순위) — 이 앱은 단기 회전 포착 도구임을 항상 노출
+  app.appendChild(el("div","horizon-note",
+    `<span>⏱</span><div>이 신호는 통상 <b>수일~수주 단위 섹터 회전</b>을 포착하기 위한 도구입니다. 장기 보유 판단의 근거로 쓰기보다는 단기 관찰용으로 활용하세요.</div>`));
+
   const early=scored.filter(x=>isEarlyCandidate(x.scores))
     .sort((a,b)=>b.scores.opp-a.scores.opp);
   const strong=[...scored].sort((a,b)=>b.scores.sss-a.scores.sss).slice(0,5);
@@ -776,6 +852,19 @@ function render(){
     app.appendChild(el("div","warn",
       `<span>⚠</span><div>현재 시장 국면이 <b>${regime.regime==="EXTREME_RISK"?"극단적 위험회피":"위험회피"}</b>입니다. `+
       `신규 관심 신호보다 <b>현금 비중 유지·분할 관찰</b>을 우선하세요. 초기 후보 점수는 국면 감점이 적용됩니다.</div>`));
+  }
+
+  // 관심 섹터 성과 추적(6순위)
+  const watchSlugs=getJSON("ar_watch",[]);
+  if(watchSlugs.length){
+    const wp=watchlistPanel(scored,watchSlugs);
+    if(wp)app.appendChild(wp);
+    const ov=overlapWarning(scored,watchSlugs);
+    if(ov){
+      app.appendChild(el("div","overlap-warn",
+        `⚠ <b>관심 섹터 간 코인 중복</b> — 실제 분산 효과가 예상보다 적을 수 있습니다: `+
+        ov.map(d=>`<b>${d.sym}</b>(${d.sectors.join("·")})`).join(", ")));
+    }
   }
 
   // 강세 전환 초기 후보
@@ -853,22 +942,23 @@ function earlyCard(x){
     ${starBtn(x.sec.slug)}
     <div class="card-h"><div><div class="sec-name">${x.sec.ko}</div>
       <div class="sec-sub">${x.sec.en} · 유효 ${sc.raw.nValid}/${x.sec.nAll}</div></div></div>
-    <div style="margin-top:10px">${stateBadge(sc.state)}</div>
-    <div class="opp"><div class="opp-row"><span class="opp-lbl">기회 점수</span>
+    <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">${stateBadge(sc.state)}${actionChip(sc)}</div>
+    <div class="opp"><div class="opp-row"><span class="opp-lbl" title="ERS·SSS·국면적합·국내관심을 종합한 검토 우선순위 점수(0~100)">기회 점수 ⓘ</span>
       <span class="opp-lbl">${confDots(sc.conf)}</span></div>
       <div class="opp-val" style="color:${heat(sc.opp)}">${U.fmt(sc.opp,0)}</div>
       <div class="heatbar"><i style="width:${sc.opp}%;background:${heat(sc.opp)}"></i></div></div>
     <div class="mini-metrics">
-      <div class="mm">ERS <b>${U.fmt(sc.ers,0)}</b></div>
-      <div class="mm">SSS <b>${U.fmt(sc.sss,0)}</b></div>
-      <div class="mm">과열 <b>${U.fmt(sc.overheat,0)}</b></div>
-      <div class="mm">위험 <b>${U.fmt(sc.risk,0)}</b></div></div>
+      <div class="mm" title="초기 회전 강도 — 섹터가 막 강해지기 시작했는지">ERS <b>${U.fmt(sc.ers,0)}</b></div>
+      <div class="mm" title="섹터 전반 강도 — 지금 얼마나 강한 섹터인지">SSS <b>${U.fmt(sc.sss,0)}</b></div>
+      <div class="mm" title="단기 급등·과매수 정도 — 높을수록 추격 부담">과열 <b>${U.fmt(sc.overheat,0)}</b></div>
+      <div class="mm" title="변동성·거래집중·데이터부족 등을 반영한 위험도">위험 <b>${U.fmt(sc.risk,0)}</b></div></div>
     <div class="reasons"><ul>
       ${ex.pos.slice(0,3).map(f=>`<li class="r-pos"><span class="ic">＋</span><span>${f.desc}</span></li>`).join("")}
       ${ex.neg.slice(0,2).map(f=>`<li class="r-neg"><span class="ic">－</span><span>${f.desc}</span></li>`).join("")}
     </ul></div>
     <div class="lead-coins">${leads.map(t=>`<span class="chip"><b>${t.c.symbol}</b> ${pctSpan(t.c.chg7d,0)}</span>`).join("")}</div>
-    <div class="invalid">무효화: ${ex.inval[0]}</div>`;
+    <div class="invalid">무효화: ${ex.inval[0]}</div>
+    <div class="principle">진입을 고려한다면 총 투자금의 일부만, 분할로. 무효화 조건 도달 시 재검토.</div>`;
   return c;
 }
 
@@ -880,14 +970,16 @@ function strongCard(x){
     <div class="card-h"><div><div class="sec-name">${x.sec.ko}</div>
       <div class="sec-sub">SSS 순위 #${sc.rankSSS}${sc.rankDelta?` <span class="${sc.rankDelta>0?'num-up':'num-dn'}">${sc.rankDelta>0?'▲':'▼'}${Math.abs(sc.rankDelta)}</span>`:''}</div></div>
       ${stateBadge(sc.state)}</div>
-    <div class="opp"><div class="opp-row"><span class="opp-lbl">섹터 강도 SSS</span><span class="opp-lbl">${confDots(sc.conf)}</span></div>
+    <div style="margin-top:8px">${actionChip(sc)}</div>
+    <div class="opp"><div class="opp-row"><span class="opp-lbl" title="섹터 전반 강도 — 지금 얼마나 강한 섹터인지">섹터 강도 SSS ⓘ</span><span class="opp-lbl">${confDots(sc.conf)}</span></div>
       <div class="opp-val" style="color:${heat(sc.sss)}">${U.fmt(sc.sss,0)}</div>
       <div class="heatbar"><i style="width:${sc.sss}%;background:${heat(sc.sss)}"></i></div></div>
     <div class="mini-metrics">
       <div class="mm">7일 <b>${U.sign(sc.raw.ret7)}${U.fmt(sc.raw.ret7,0)}%</b></div>
       <div class="mm">vsBTC <b>${U.sign(sc.raw.relBtc)}${U.fmt(sc.raw.relBtc,0)}</b></div>
       <div class="mm">상승비율 <b>${U.fmt(sc.raw.breadth7,0)}%</b></div>
-      <div class="mm">기회 <b>${U.fmt(sc.opp,0)}</b></div></div>`;
+      <div class="mm">기회 <b>${U.fmt(sc.opp,0)}</b></div></div>
+    <div class="principle">진입을 고려한다면 총 투자금의 일부만, 분할로.</div>`;
   return c;
 }
 
@@ -908,11 +1000,37 @@ function listPanel(title,items,key,sub){
   return p;
 }
 
+function watchlistPanel(scored,watchSlugs){
+  const rows=watchSlugs.map(slug=>{
+    const x=scored.find(s=>s.sec.slug===slug); const wr=watchReturn(slug);
+    if(!x)return null;
+    return {x,wr};
+  }).filter(Boolean);
+  if(!rows.length)return null;
+  const p=el("div","watch-panel");
+  p.innerHTML=`<div class="sec-name" style="margin-bottom:2px">★ 관심 섹터 성과</div>
+    <div class="sec-sub" style="margin-bottom:4px">등록 시점 대비 구성코인 평균 수익률 — 신호 자체를 검증하는 용도(매매 실행 여부와 무관)</div>`;
+  rows.forEach(({x,wr})=>{
+    const row=el("div","watch-row"); row.style.cursor="pointer"; row.onclick=()=>openDetail(x);
+    if(!wr){
+      row.innerHTML=`<div style="flex:1"><b>${x.sec.ko}</b></div><div class="sec-sub">데이터 준비 중</div>`;
+    }else{
+      const days=Math.max(0,(Date.now()-new Date(wr.at).getTime())/86400000);
+      row.innerHTML=`<div style="flex:1"><b>${x.sec.ko}</b>
+          <span class="sec-sub">등록 ${days<1?'오늘':days.toFixed(0)+'일 전'} · 기회점수 ${U.fmt(wr.oppAtStar,0)}→${U.fmt(wr.oppNow,0)}</span></div>
+        <div class="mono" style="font-weight:700">${pctSpan(wr.ret,1)}</div>`;
+    }
+    p.appendChild(row);
+  });
+  return p;
+}
+
 function heatmap(scored){
   const wrap=el("section"); const box=el("div","hm-wrap");
-  const cols=[["1일","ret1"],["3일","ret3"],["7일","ret7"],["30일","ret30"],
-    ["SSS","sss"],["ERS","ers"],["위험","risk"],["과열","overheat"],["상태","state"]];
-  let h=`<table class="hm"><thead><tr><th>섹터</th>${cols.map(c=>`<th>${c[0]}</th>`).join("")}</tr></thead><tbody>`;
+  const cols=[["1일","ret1",""],["3일","ret3",""],["7일","ret7",""],["30일","ret30",""],
+    ["SSS","sss","섹터 전반 강도"],["ERS","ers","초기 회전 강도"],
+    ["위험","risk","변동성·거래집중 등 리스크"],["과열","overheat","단기 급등·과매수 정도"],["상태","state",""]];
+  let h=`<table class="hm"><thead><tr><th>섹터</th>${cols.map(c=>`<th${c[2]?` title="${c[2]}"`:""}>${c[0]}${c[2]?' ⓘ':''}</th>`).join("")}</tr></thead><tbody>`;
   [...scored].sort((a,b)=>b.scores.opp-a.scores.opp).forEach(x=>{
     const sc=x.scores;
     h+=`<tr><td class="nm">${x.sec.ko}</td>`;
@@ -982,7 +1100,18 @@ function starBtn(slug){
   return `<button class="star ${on?'on':''}" data-slug="${slug}" onclick="toggleStar(event,'${slug}')" title="관심 섹터">${on?'★':'☆'}</button>`;
 }
 window.toggleStar=(e,slug)=>{e.stopPropagation();let wl=getJSON("ar_watch",[]);
-  wl=wl.includes(slug)?wl.filter(s=>s!==slug):[...wl,slug];setJSON("ar_watch",wl);render();};
+  const meta=getJSON("ar_watch_meta",{});
+  if(wl.includes(slug)){
+    wl=wl.filter(s=>s!==slug); delete meta[slug];
+  }else{
+    wl=[...wl,slug];
+    const x=RESULT?.sectors.find(s=>s.sec.slug===slug);
+    if(x&&x.scores){
+      const prices={}; x.sec.coins.forEach(c=>prices[c.symbol]=c.price);
+      meta[slug]={at:new Date().toISOString(),opp:x.scores.opp,sss:x.scores.sss,prices};
+    }
+  }
+  setJSON("ar_watch",wl); setJSON("ar_watch_meta",meta); render();};
 
 /* ---------- detail modal ---------- */
 function openDetail(x){
@@ -994,14 +1123,17 @@ function openDetail(x){
   m.innerHTML=`
    <div class="modal-h">
      <div><h2>${x.sec.ko} <span style="font-size:13px;color:var(--txt3);font-weight:500">${x.sec.en}</span></h2>
-       <div style="margin-top:6px">${stateBadge(sc.state)} ${confDots(sc.conf)} <span class="sec-sub">유효 코인 ${sc.raw.nValid}/${x.sec.nAll}</span></div></div>
+       <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">${stateBadge(sc.state)}${actionChip(sc)} ${confDots(sc.conf)} <span class="sec-sub">유효 코인 ${sc.raw.nValid}/${x.sec.nAll}</span></div></div>
      <button class="x" onclick="closeModal()">×</button>
    </div>
    <p style="color:var(--txt2);font-size:13px;margin:6px 0 0">${ex.summary}</p>
+   <p style="color:var(--txt3);font-size:11.5px;margin:6px 0 0">${actionLabel(sc).desc} 진입을 고려한다면 총 투자금의 일부만, 분할로 접근하고 무효화 조건을 주시하세요.</p>
    <div class="kv-grid">
      ${kv("기회 점수",U.fmt(sc.opp,0),heat(sc.opp))}
-     ${kv("ERS",U.fmt(sc.ers,0))}${kv("SSS",U.fmt(sc.sss,0))}
-     ${kv("위험",U.fmt(sc.risk,0))}${kv("과열",U.fmt(sc.overheat,0))}
+     ${kv(`<span title="초기 회전 강도">ERS ⓘ</span>`,U.fmt(sc.ers,0))}
+     ${kv(`<span title="섹터 전반 강도">SSS ⓘ</span>`,U.fmt(sc.sss,0))}
+     ${kv(`<span title="변동성·거래집중 등 리스크">위험 ⓘ</span>`,U.fmt(sc.risk,0))}
+     ${kv(`<span title="단기 급등·과매수 정도">과열 ⓘ</span>`,U.fmt(sc.overheat,0))}
      ${kv("국내관심",U.fmt(sc.korea,0))}
    </div>
    <div class="sub-h">점수 근거 (계산 결과 기반)</div>
@@ -1022,10 +1154,11 @@ function openDetail(x){
    </div>
    <div class="sub-h">구성 코인 (${coins.length})</div>
    <div style="overflow-x:auto"><table class="coin-tbl">
-     <thead><tr><th>코인</th><th>구분</th><th>가격</th><th>24h</th><th>7d</th><th>거래대금</th><th>RSI</th><th>KRW</th></tr></thead>
+     <thead><tr><th>코인</th><th>구분</th><th title="시가총액 기준 규모 — 소형일수록 변동성·조작 위험 큼">규모 ⓘ</th><th>가격</th><th>24h</th><th>7d</th><th>거래대금</th><th>RSI</th><th>KRW</th></tr></thead>
      <tbody>${coins.map(t=>`<tr>
        <td><b>${t.c.symbol}</b></td>
        <td><span class="role" style="background:${hexA(cv(roleColor[t.role]||'--txt3'),.16)};color:${cv(roleColor[t.role]||'--txt3')}">${t.role}</span></td>
+       <td>${mcapChip(t.c.mcap)}</td>
        <td>${U.usd(t.c.price)}</td>
        <td>${pctSpan(t.c.chg24h,1)}</td>
        <td>${pctSpan(t.c.chg7d,1)}</td>

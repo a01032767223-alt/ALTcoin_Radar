@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0d1015" />
+<title>AltSector Radar — 알트코인 섹터 로테이션</title>
+<style>
+  :root{
+    --bg:#0d1015; --bg2:#12161f; --bg3:#1a2130; --raise:#202a3c;
+    --line:#232c3d; --line2:#2f3b52;
+    --txt:#e6ebf2; --txt2:#9aa7bd; --txt3:#65728a;
+    --up:#e5564e; --dn:#4f8ef7;              /* 한국 관례: 상승=적, 하락=청 */
+    --cool:#4f8ef7; --teal:#18b8a6; --warm:#f2a33c; --hot:#f97316; --danger:#e5564e;
+    --weak:#64748b; --base:#7c83f0; --early:#18b8a6; --strong:#f2a33c; --over:#f97316; --dist:#e5564e;
+    --mono:"SF Mono",ui-monospace,"JetBrains Mono","Cascadia Code",Menlo,Consolas,monospace;
+    --sans:"Pretendard","Pretendard Variable",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--txt);font-family:var(--sans);
+       font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased;
+       padding-bottom:env(safe-area-inset-bottom)}
+  .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  a{color:var(--cool)}
+  button{font-family:inherit;cursor:pointer}
+  ::-webkit-scrollbar{height:8px;width:8px}
+  ::-webkit-scrollbar-thumb{background:var(--line2);border-radius:8px}
+
+  /* ---------- layout ---------- */
+  header{position:sticky;top:0;z-index:40;background:rgba(13,16,21,.82);
+    backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+  .hd{max-width:1180px;margin:0 auto;padding:11px 16px;display:flex;align-items:center;gap:12px}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:800;letter-spacing:-.02em;font-size:16px}
+  .radar-ico{width:22px;height:22px;flex:0 0 auto}
+  .brand small{font-weight:500;color:var(--txt3);font-size:11px;letter-spacing:0}
+  .hd-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+  .src-badge{font-size:11px;padding:3px 9px;border-radius:20px;border:1px solid var(--line2);
+    color:var(--txt2);display:flex;align-items:center;gap:6px;white-space:nowrap}
+  .dot{width:7px;height:7px;border-radius:50%}
+  .btn{background:var(--bg3);border:1px solid var(--line2);color:var(--txt);
+    padding:6px 12px;border-radius:8px;font-size:12.5px;font-weight:600}
+  .btn:hover{background:var(--raise)}
+  .btn.on{background:#173a35;border-color:#1c6b60;color:#5fe6d1}
+
+  main{max-width:1180px;margin:0 auto;padding:16px}
+  section{margin-bottom:22px}
+  .eyebrow{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--txt3);margin:0 0 10px;display:flex;align-items:center;gap:8px}
+  .eyebrow .rule{flex:1;height:1px;background:var(--line)}
+
+  /* ---------- regime bar ---------- */
+  .regime{border:1px solid var(--line);border-radius:16px;padding:16px 18px;
+    background:linear-gradient(180deg,var(--bg2),var(--bg2))}
+  .regime-top{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .regime-badge{font-size:20px;font-weight:800;letter-spacing:-.02em;padding:6px 14px;
+    border-radius:10px;display:flex;align-items:center;gap:8px}
+  .rg-score{font-family:var(--mono);font-size:34px;font-weight:700;line-height:1}
+  .rg-score small{font-size:14px;color:var(--txt3);font-weight:500}
+  .gauge{flex:1;min-width:220px}
+  .gauge-track{height:9px;border-radius:6px;position:relative;overflow:hidden;
+    background:linear-gradient(90deg,#7a2f2c 0%,#8a5a24 33%,#166b60 66%,#1f6f4a 100%)}
+  .gauge-fill-mask{position:absolute;top:0;right:0;height:100%;background:var(--bg2);opacity:.72}
+  .gauge-needle{position:absolute;top:-4px;width:2px;height:17px;background:#fff;border-radius:2px;
+    box-shadow:0 0 0 2px rgba(0,0,0,.4)}
+  .gauge-lbls{display:flex;justify-content:space-between;font-size:10px;color:var(--txt3);margin-top:5px}
+  .regime-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
+    gap:1px;margin-top:15px;background:var(--line);border-radius:10px;overflow:hidden}
+  .rm{background:var(--bg2);padding:10px 12px}
+  .rm .k{font-size:11px;color:var(--txt3);margin-bottom:3px}
+  .rm .v{font-family:var(--mono);font-size:15px;font-weight:600}
+  .regime-note{margin-top:13px;font-size:12.5px;color:var(--txt2);
+    border-left:2px solid var(--line2);padding-left:11px}
+
+  /* ---------- cards grid ---------- */
+  .grid{display:grid;gap:12px}
+  .g5{grid-template-columns:repeat(auto-fill,minmax(215px,1fr))}
+  .g2{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+
+  .card{background:var(--bg2);border:1px solid var(--line);border-radius:14px;
+    padding:14px;transition:border-color .15s,transform .15s;cursor:pointer;position:relative}
+  .card:hover{border-color:var(--line2);transform:translateY(-1px)}
+  .card-h{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+  .sec-name{font-weight:700;font-size:15px;letter-spacing:-.01em}
+  .sec-sub{font-size:11px;color:var(--txt3);margin-top:1px}
+  .state-pill{font-size:11px;font-weight:700;padding:3px 8px;border-radius:7px;
+    display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+  .opp{margin-top:12px}
+  .opp-row{display:flex;align-items:baseline;justify-content:space-between}
+  .opp-lbl{font-size:11px;color:var(--txt3)}
+  .opp-val{font-family:var(--mono);font-size:26px;font-weight:700;line-height:1}
+  .heatbar{height:7px;border-radius:5px;margin-top:6px;background:var(--bg3);overflow:hidden}
+  .heatbar > i{display:block;height:100%;border-radius:5px}
+  .mini-metrics{display:flex;gap:14px;margin-top:11px;flex-wrap:wrap}
+  .mm{font-size:11px;color:var(--txt3)}
+  .mm b{font-family:var(--mono);color:var(--txt);font-weight:600;font-size:12.5px}
+  .conf{display:inline-flex;gap:2px;align-items:center}
+  .conf i{width:5px;height:9px;border-radius:1px;background:var(--line2)}
+  .conf i.on{background:var(--teal)}
+
+  .reasons{margin-top:11px;border-top:1px solid var(--line);padding-top:10px}
+  .reasons ul{margin:0;padding:0;list-style:none}
+  .reasons li{font-size:11.5px;color:var(--txt2);display:flex;gap:6px;margin-bottom:4px;line-height:1.35}
+  .reasons li .ic{flex:0 0 auto;font-family:var(--mono)}
+  .r-pos .ic{color:var(--up)} .r-neg .ic{color:var(--dn)}
+  .lead-coins{display:flex;gap:5px;margin-top:9px;flex-wrap:wrap}
+  .chip{font-size:10.5px;font-family:var(--mono);background:var(--bg3);border:1px solid var(--line2);
+    padding:2px 7px;border-radius:6px;color:var(--txt2)}
+  .chip b{color:var(--txt)}
+  .invalid{font-size:10.5px;color:var(--txt3);margin-top:8px;font-style:italic}
+  .star{position:absolute;top:11px;right:11px;font-size:15px;color:var(--txt3);
+    background:none;border:none;padding:2px;line-height:1}
+  .star.on{color:var(--warm)}
+
+  /* ---------- heatmap ---------- */
+  .hm-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+  table.hm{border-collapse:collapse;width:100%;min-width:640px;font-size:12px}
+  .hm th{position:sticky;top:0;background:var(--bg3);color:var(--txt2);font-weight:600;
+    padding:9px 8px;text-align:right;font-size:11px;white-space:nowrap}
+  .hm th:first-child{text-align:left}
+  .hm td{padding:0;border-top:1px solid var(--bg)}
+  .hm .nm{padding:9px 10px;font-weight:600;white-space:nowrap;background:var(--bg2);
+    position:sticky;left:0;z-index:1}
+  .hm .cell{padding:9px 8px;text-align:right;font-family:var(--mono);font-weight:600;position:relative}
+  .hm tr:hover .nm{background:var(--bg3)}
+
+  /* ---------- radar map ---------- */
+  .radar-box{border:1px solid var(--line);border-radius:14px;background:var(--bg2);padding:8px}
+  .radar-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--txt3);
+    padding:6px 10px 10px}
+  .radar-legend span{display:flex;align-items:center;gap:5px}
+
+  /* ---------- modal ---------- */
+  .overlay{position:fixed;inset:0;background:rgba(6,8,12,.7);backdrop-filter:blur(4px);
+    z-index:60;display:none;align-items:flex-start;justify-content:center;overflow-y:auto;padding:24px 12px}
+  .overlay.open{display:flex}
+  .modal{background:var(--bg2);border:1px solid var(--line2);border-radius:16px;
+    width:100%;max-width:860px;padding:20px}
+  .modal-h{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:6px}
+  .modal-h h2{margin:0;font-size:22px;letter-spacing:-.02em}
+  .x{background:var(--bg3);border:1px solid var(--line2);color:var(--txt2);width:32px;height:32px;
+    border-radius:9px;font-size:18px;line-height:1}
+  .kv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:1px;
+    background:var(--line);border-radius:10px;overflow:hidden;margin:14px 0}
+  .kv{background:var(--bg2);padding:10px 12px}
+  .kv .k{font-size:10.5px;color:var(--txt3)} .kv .v{font-family:var(--mono);font-size:17px;font-weight:700}
+  .sub-h{font-size:12px;font-weight:700;color:var(--txt2);margin:16px 0 8px;letter-spacing:.04em}
+  .factors{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media(max-width:560px){.factors{grid-template-columns:1fr}}
+  .fbox{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px}
+  .fbox h4{margin:0 0 7px;font-size:11px;color:var(--txt3);font-weight:600}
+  .frow{display:flex;justify-content:space-between;gap:8px;font-size:12px;margin-bottom:5px}
+  .frow .d{color:var(--txt2);flex:1}
+  .frow .i{font-family:var(--mono);font-weight:700;white-space:nowrap}
+  .coin-tbl{width:100%;border-collapse:collapse;font-size:12px}
+  .coin-tbl th{text-align:right;color:var(--txt3);font-weight:600;padding:7px 8px;font-size:11px;
+    border-bottom:1px solid var(--line)}
+  .coin-tbl th:first-child,.coin-tbl td:first-child{text-align:left}
+  .coin-tbl td{padding:7px 8px;border-bottom:1px solid var(--bg);font-family:var(--mono)}
+  .role{font-size:10px;font-weight:700;padding:2px 6px;border-radius:5px;font-family:var(--sans)}
+
+  .num-up{color:var(--up)} .num-dn{color:var(--dn)}
+  .foot{font-size:11px;color:var(--txt3);line-height:1.6;border-top:1px solid var(--line);
+    padding-top:16px;margin-top:8px}
+  .disc{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:14px;
+    font-size:11.5px;color:var(--txt2);line-height:1.6}
+  .method details{border:1px solid var(--line);border-radius:10px;background:var(--bg2);padding:2px 14px;margin-bottom:8px}
+  .method summary{cursor:pointer;padding:11px 0;font-weight:600;font-size:13px}
+  .method p,.method li{font-size:12px;color:var(--txt2);line-height:1.55}
+  .warn{background:#2a1d15;border:1px solid #6b3f1c;color:#f0b878;border-radius:10px;
+    padding:10px 13px;font-size:12px;margin-bottom:14px;display:flex;gap:8px}
+  .loading{text-align:center;padding:60px 20px;color:var(--txt3)}
+  .spin{width:26px;height:26px;border:3px solid var(--line2);border-top-color:var(--teal);
+    border-radius:50%;animation:sp 1s linear infinite;margin:0 auto 14px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  @media(max-width:520px){.rg-score{font-size:28px}.hd{gap:8px}.brand small{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <div class="hd">
+    <div class="brand">
+      <svg class="radar-ico" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="10" stroke="#18b8a6" stroke-width="1.3"/>
+        <circle cx="12" cy="12" r="6" stroke="#2f3b52" stroke-width="1"/>
+        <circle cx="12" cy="12" r="2" stroke="#2f3b52" stroke-width="1"/>
+        <path d="M12 12 L20 6" stroke="#f2a33c" stroke-width="1.6" stroke-linecap="round"/>
+        <circle cx="17" cy="8" r="1.6" fill="#e5564e"/>
+      </svg>
+      <div>AltSector Radar<br><small>알트코인 섹터 로테이션 분석</small></div>
+    </div>
+    <div class="hd-right">
+      <div class="src-badge" id="srcBadge"><span class="dot" style="background:var(--txt3)"></span> 대기</div>
+      <button class="btn" id="modeBtn" title="Mock ↔ 실데이터 전환">Mock</button>
+      <button class="btn" id="reloadBtn">↻ 갱신</button>
+    </div>
+  </div>
+</header>
+
+<main id="app">
+  <div class="loading"><div class="spin"></div>데이터 준비 중…</div>
+</main>
+
+<div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
+
+<script>
+"use strict";
+/* ============================================================================
+   AltSector Radar — client-side PWA
+   설계 원칙(스펙 반영):
+   - 점수 계산은 순수 함수(ENGINE)로 UI와 분리
+   - 실데이터 실패 시 Mock 자동 폴백, 데이터 품질/신선도 배지 표시
+   - LLM/임의 숫자 생성 없음. 모든 설명은 계산 결과 템플릿으로 생성
+   - 색상 단독 의미전달 금지: 색+숫자+아이콘 병기, 상승=적/하락=청(국내 관례)
+   ========================================================================== */
+
+/* ---------------- CONFIG ---------------- */
+const CFG = {
+  weightsSSS:{rel:.30,vol:.20,breadth:.20,mom:.15,liq:.10,persist:.05},
+  weightsERS:{rsImp:.25,volAcc:.25,breadthExp:.20,leader:.15,noOver:.15},
+  weightsOpp:{ers:.45,sss:.25,regimeFit:.20,korea:.10},
+  regime:{on:70,neutral:45,off:25},          // >=on RISK_ON, >=neutral NEUTRAL, >=off RISK_OFF, else EXTREME
+  early:{ersMin:65,sssLo:40,sssHi:75,overMax:50,riskMax:65,minCoins:4},
+  winsor:[5,95],
+  minCoinsValid:3,
+  cgBase:"https://api.coingecko.com/api/v3",
+  upbitBase:"https://api.upbit.com/v1",
+  fetchTimeout:12000
+};
+
+const SECTORS = [
+  {slug:"layer1", ko:"레이어1", en:"Layer 1", syms:["ETH","SOL","BNB","ADA","AVAX","SUI","TON","TRX","NEAR","HBAR"]},
+  {slug:"layer2", ko:"레이어2", en:"Layer 2", syms:["ARB","OP","STRK","ZK","MNT","IMX","METIS","LRC","BLAST","SCR"]},
+  {slug:"defi", ko:"DeFi", en:"DeFi", syms:["HYPE","UNI","AAVE","SKY","LDO","CRV","PENDLE","ENA","JUP","MORPHO"]},
+  {slug:"rwa", ko:"RWA", en:"Real World Assets", syms:["ONDO","LINK","SKY","SYRUP","CFG","XDC","POLYX","PLUME","CHEX","TRU"]},
+  {slug:"ai", ko:"AI", en:"AI", syms:["TAO","NEAR","RENDER","FET","ICP","VIRTUAL","AKT","GRASS","AIOZ","IO"]},
+  {slug:"depin", ko:"DePIN", en:"DePIN", syms:["RENDER","FIL","HNT","AKT","AIOZ","THETA","GRASS","IOTX","DIMO","GEOD"]},
+  {slug:"oracle", ko:"오라클", en:"Oracle", syms:["LINK","PYTH","RED","API3","BAND","TRB","DIA","UMA","FLR","SUPRA"]},
+  {slug:"gaming", ko:"게임·메타버스", en:"Gaming", syms:["IMX","RON","GALA","SAND","MANA","AXS","BEAM","ILV","YGG","WEMIX"]},
+  {slug:"storage", ko:"스토리지", en:"Storage", syms:["FIL","AR","BTT","STORJ","SC","HOT","WAL","SHDW","OORT","BLZ"]},
+  {slug:"crosschain", ko:"크로스체인", en:"Cross-chain", syms:["DOT","ATOM","LINK","ZRO","W","AXL","QNT","RUNE","SYN","CELR"]},
+  {slug:"exchange", ko:"거래소 토큰", en:"Exchange", syms:["BNB","LEO","OKB","CRO","BGB","KCS","GT","MX","WBT","WOO"]},
+  {slug:"meme", ko:"밈코인", en:"Meme", syms:["DOGE","SHIB","PEPE","PENGU","SPX","BONK","FLOKI","WIF","FARTCOIN","TRUMP"]},
+  {slug:"privacy", ko:"프라이버시", en:"Privacy", syms:["XMR","ZEC","DASH","SCRT","ROSE","ALEO","MINA","NYM","DUSK","FIRO"]},
+  {slug:"payment", ko:"결제·송금", en:"Payment", syms:["XRP","XLM","LTC","BCH","DASH","XNO","ACH","AMP","CELO","UTK"]},
+];
+const STABLE = new Set(["USDT","USDC","DAI","TUSD","FDUSD","USDE","USDS"]);
+
+const STATE_META = {
+  WEAK:{ko:"약세",c:"--weak",ic:"●"}, BASE:{ko:"바닥형성",c:"--base",ic:"◐"},
+  EARLY:{ko:"초기강세",c:"--early",ic:"▲"}, STRONG:{ko:"강세확인",c:"--strong",ic:"★"},
+  OVERHEATED:{ko:"과열",c:"--over",ic:"⚠"}, DISTRIBUTION:{ko:"분배·약화",c:"--dist",ic:"▽"}
+};
+
+/* ---------------- UTIL / MATH ---------------- */
+const U = {
+  clamp:(x,a=0,b=100)=>Math.max(a,Math.min(b,x)),
+  mean:a=>a.length?a.reduce((s,x)=>s+x,0)/a.length:0,
+  median:a=>{if(!a.length)return 0;const s=[...a].sort((x,y)=>x-y);const m=s.length>>1;
+    return s.length%2?s[m]:(s[m-1]+s[m])/2;},
+  std:a=>{if(a.length<2)return 0;const m=U.mean(a);return Math.sqrt(U.mean(a.map(x=>(x-m)**2)));},
+  sum:a=>a.reduce((s,x)=>s+x,0),
+  pct:(a,b)=>b?(a/b-1)*100:0,
+  // 횡단면 백분위(0~100): 값이 클수록 높음
+  pctRank:(v,arr)=>{if(arr.length<2)return 50;let below=0,eq=0;
+    for(const x of arr){if(x<v)below++;else if(x===v)eq++;}
+    return U.clamp(100*(below+eq/2)/arr.length);},
+  winsor:(arr,lo=5,hi=95)=>{if(arr.length<3)return arr.slice();const s=[...arr].sort((a,b)=>a-b);
+    const q=p=>s[Math.min(s.length-1,Math.max(0,Math.round((p/100)*(s.length-1))))];
+    const L=q(lo),H=q(hi);return arr.map(x=>Math.max(L,Math.min(H,x)));},
+  slope:a=>{const n=a.length;if(n<2)return 0;let sx=0,sy=0,sxy=0,sxx=0;
+    for(let i=0;i<n;i++){sx+=i;sy+=a[i];sxy+=i*a[i];sxx+=i*i;}
+    const d=n*sxx-sx*sx;return d?(n*sxy-sx*sy)/d:0;},
+  rsi:(a,p=14)=>{if(a.length<p+1)return 50;let g=0,l=0;
+    for(let i=a.length-p;i<a.length;i++){const d=a[i]-a[i-1];if(d>=0)g+=d;else l-=d;}
+    if(g+l===0)return 50;const rs=g/(l||1e-9);return 100-100/(1+rs);},
+  fmt:(x,d=1)=>x==null||isNaN(x)?"–":Number(x).toFixed(d),
+  sign:x=>x>0?"+":"",
+  money:x=>{if(x==null)return"–";const a=Math.abs(x);
+    if(a>=1e12)return(x/1e12).toFixed(2)+"조";if(a>=1e8)return(x/1e8).toFixed(1)+"억";
+    if(a>=1e4)return(x/1e4).toFixed(0)+"만";return x.toFixed(0);},
+  usd:x=>{if(x==null)return"–";const a=Math.abs(x);
+    if(a>=1e9)return"$"+(x/1e9).toFixed(2)+"B";if(a>=1e6)return"$"+(x/1e6).toFixed(1)+"M";
+    if(a>=1e3)return"$"+(x/1e3).toFixed(1)+"K";return"$"+x.toFixed(2);}
+};
+
+/* ---------------- SAFE STORAGE (GitHub Pages ok, artifact 미리보기 fallback) ---------------- */
+const Store = (()=>{
+  let ok=true; const mem={};
+  try{const k="__ar_t";localStorage.setItem(k,"1");localStorage.removeItem(k);}catch(e){ok=false;}
+  return {
+    get:k=>{try{return ok?localStorage.getItem(k):(mem[k]??null);}catch(e){return mem[k]??null;}},
+    set:(k,v)=>{try{ok?localStorage.setItem(k,v):(mem[k]=v);}catch(e){mem[k]=v;}}
+  };
+})();
+const getJSON=(k,d)=>{const v=Store.get(k);if(!v)return d;try{return JSON.parse(v);}catch(e){return d;}};
+const setJSON=(k,v)=>Store.set(k,JSON.stringify(v));
+
+/* ---------------- FETCH helper ---------------- */
+async function jget(url){
+  const ctl=new AbortController();
+  const t=setTimeout(()=>ctl.abort(),CFG.fetchTimeout);
+  try{
+    const r=await fetch(url,{signal:ctl.signal,headers:{accept:"application/json"}});
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    return await r.json();
+  }finally{clearTimeout(t);}
+}
+
+/* ============================================================================
+   ADAPTERS  →  표준 스냅샷 { coins:{SYM:coin}, global, btcHist, ethHist, source, asOf }
+   coin: {symbol,name,id,price,mcap,fdv,vol24,chg1h,chg24h,chg7d,chg30d,spark[],
+          chg3d,vol7d,rsi,shortMAup,krwListed,premium}
+   ========================================================================== */
+
+function deriveCoin(c){
+  const spark=Array.isArray(c.spark)&&c.spark.length>10?c.spark:null;
+  let chg3d=c.chg7d, vol7d=Math.abs(c.chg24h||0), rsi=50, shortMAup=(c.chg24h||0)>0;
+  if(spark){
+    const n=spark.length;
+    const p72=spark[Math.max(0,n-72)]; chg3d=U.pct(spark[n-1],p72);
+    const rets=[];for(let i=1;i<n;i++)rets.push((spark[i]/spark[i-1]-1)*100);
+    vol7d=U.std(rets)*Math.sqrt(24); // 시간봉→일 환산 근사
+    rsi=U.rsi(spark,14);
+    const ma=U.mean(spark.slice(Math.max(0,n-48)));
+    shortMAup=spark[n-1]>ma;
+  }
+  return {...c,spark,chg3d,vol7d,rsi,shortMAup};
+}
+
+const MockAdapter = {
+  name:"MOCK",
+  async fetchAll(){
+    // 시드 RNG (재현성)
+    let s=Date.now()>>16; const rnd=()=>{s=(s*1103515245+12345)&0x7fffffff;return s/0x7fffffff;};
+    const uniq=new Set(); SECTORS.forEach(x=>x.syms.forEach(y=>uniq.add(y)));
+    // 섹터별 성향(트렌드) 부여 → EARLY/STRONG/WEAK 다양성
+    const bias={}; SECTORS.forEach((x,i)=>bias[x.slug]=Math.sin(i*1.7)+ (rnd()-.5));
+    const symSector={}; SECTORS.forEach(x=>x.syms.forEach(y=>{if(!symSector[y])symSector[y]=x.slug;}));
+    const coins={};
+    [...uniq].forEach((sym,idx)=>{
+      const b=bias[symSector[sym]]||0;
+      const trend=b*3 + (rnd()-.5)*8;                       // 7d %
+      const price=Math.max(.0001,(rnd()*400+.5));
+      const mcap=Math.max(2e7, price*(rnd()*4e8+5e6));
+      const vol=mcap*(0.03+rnd()*0.25);
+      const chg24=trend/3 + (rnd()-.5)*5;
+      const chg7=trend + (rnd()-.5)*6;
+      const chg30=trend*1.6 + (rnd()-.5)*22;
+      // 스파크라인 168pt: 추세 + 노이즈
+      const spark=[]; let p=price/(1+chg7/100);
+      for(let i=0;i<168;i++){p*=1+(chg7/100)/168+(rnd()-.5)*0.012;spark.push(Math.max(.00001,p));}
+      spark[167]=price;
+      coins[sym]=deriveCoin({symbol:sym,name:sym,id:sym.toLowerCase(),price,mcap,fdv:mcap*1.3,
+        vol24:vol,chg1h:(rnd()-.5)*2,chg24h:chg24,chg7d:chg7,chg30d:chg30,spark,
+        krwListed:rnd()>0.4,premium:rnd()>0.5?(rnd()*3-1):null});
+    });
+    // 글로벌/ BTC·ETH 히스토리
+    const btcHist=[],ethHist=[]; let bp=95000,ep=3400;
+    for(let i=0;i<60;i++){bp*=1+(rnd()-.48)*.02;ep*=1+(rnd()-.48)*.024;btcHist.push(bp);ethHist.push(ep);}
+    const glob={mcap:2.4e12,mcapChg24:(rnd()-.5)*4,btcDom:54+rnd()*4};
+    return {coins,global:glob,btcHist,ethHist,source:"MOCK",asOf:new Date().toISOString()};
+  }
+};
+
+const CoinGeckoAdapter = {
+  name:"COINGECKO",
+  async fetchAll(){
+    const mk=p=>`${CFG.cgBase}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=${p}`+
+      `&sparkline=true&price_change_percentage=1h%2C24h%2C7d%2C30d`;
+    const [p1,p2,glob,btc,eth]=await Promise.all([
+      jget(mk(1)), jget(mk(2)),
+      jget(`${CFG.cgBase}/global`),
+      jget(`${CFG.cgBase}/coins/bitcoin/market_chart?vs_currency=usd&days=60&interval=daily`),
+      jget(`${CFG.cgBase}/coins/ethereum/market_chart?vs_currency=usd&days=60&interval=daily`)
+    ]);
+    const rows=[...(p1||[]),...(p2||[])];
+    const coins={};
+    for(const r of rows){
+      const sym=(r.symbol||"").toUpperCase();
+      if(!sym||STABLE.has(sym))continue;
+      const prev=coins[sym];
+      if(prev && prev.mcap>=(r.market_cap||0))continue; // 심볼 충돌 시 시총 큰 쪽
+      coins[sym]=deriveCoin({
+        symbol:sym,name:r.name,id:r.id,price:r.current_price,mcap:r.market_cap,
+        fdv:r.fully_diluted_valuation,vol24:r.total_volume,
+        chg1h:r.price_change_percentage_1h_in_currency,
+        chg24h:r.price_change_percentage_24h_in_currency??r.price_change_percentage_24h,
+        chg7d:r.price_change_percentage_7d_in_currency,
+        chg30d:r.price_change_percentage_30d_in_currency,
+        spark:r.sparkline_in_7d?.price||null,krwListed:false,premium:null
+      });
+    }
+    const glo={
+      mcap:glob?.data?.total_market_cap?.usd,
+      mcapChg24:glob?.data?.market_cap_change_percentage_24h_usd,
+      btcDom:glob?.data?.market_cap_percentage?.btc
+    };
+    const H=x=>(x?.prices||[]).map(p=>p[1]);
+    return {coins,global:glo,btcHist:H(btc),ethHist:H(eth),source:"COINGECKO",asOf:new Date().toISOString()};
+  }
+};
+
+// 업비트 KRW 상장/김프 보강(best-effort, 실패해도 무시)
+async function enrichUpbit(snap){
+  try{
+    const markets=await jget(`${CFG.upbitBase}/market/all?isDetails=false`);
+    const krw=markets.filter(m=>m.market.startsWith("KRW-"));
+    const codeBySym={}; krw.forEach(m=>{codeBySym[m.market.split("-")[1]]=m.market;});
+    Object.values(snap.coins).forEach(c=>{if(codeBySym[c.symbol])c.krwListed=true;});
+    // 상위 심볼 김프 계산(요청 수 제한)
+    const targets=Object.values(snap.coins).filter(c=>c.krwListed)
+      .sort((a,b)=>b.mcap-a.mcap).slice(0,40);
+    if(targets.length){
+      const codes=targets.map(c=>codeBySym[c.symbol]).join(",");
+      const tick=await jget(`${CFG.upbitBase}/ticker?markets=${encodeURIComponent(codes)}`);
+      // USDKRW 근사: 업비트 BTC/KRW vs coingecko BTC/USD
+      const btc=snap.coins["BTC"]; // 없을 수 있음
+      const btcKrw=tick.find(t=>t.market==="KRW-BTC");
+      let usdkrw=1380;
+      if(btc&&btcKrw)usdkrw=btcKrw.trade_price/btc.price;
+      tick.forEach(t=>{
+        const sym=t.market.split("-")[1];const c=snap.coins[sym];if(!c)return;
+        const krwFair=c.price*usdkrw;
+        c.premium=krwFair?U.pct(t.trade_price,krwFair):null;
+      });
+    }
+    snap.upbit=true;
+  }catch(e){snap.upbit=false;}
+  return snap;
+}
+
+/* ============================================================================
+   ENGINE — 순수 계산 (섹터 스냅샷 이전값은 Store 에서 로드해 델타/지속성 반영)
+   ========================================================================== */
+
+function buildSectorMembers(snap){
+  return SECTORS.map(def=>{
+    const coins=def.syms.map(s=>snap.coins[s]).filter(Boolean)
+      .filter(c=>!STABLE.has(c.symbol) && c.mcap>0 && c.vol24>=0);
+    return {...def, coins, nAll:def.syms.length, nValid:coins.length};
+  });
+}
+
+// 시가총액 가중(개별 20% 상한, 재분배)
+function capWeights(coins){
+  let w=coins.map(c=>c.mcap); const tot=U.sum(w)||1; w=w.map(x=>x/tot);
+  for(let iter=0;iter<12;iter++){
+    const over=w.map((x,i)=>x>0.2?i:-1).filter(i=>i>=0);
+    if(!over.length)break;
+    let excess=0; over.forEach(i=>{excess+=w[i]-0.2;w[i]=0.2;});
+    const under=w.map((x,i)=>x<0.2&&!over.includes(i)?i:-1).filter(i=>i>=0);
+    const base=U.sum(under.map(i=>w[i]))||1;
+    under.forEach(i=>{w[i]+=excess*(w[i]/base);});
+  }
+  return w;
+}
+
+function calcMarketRegime(snap){
+  const bh=snap.btcHist, eh=snap.ethHist;
+  const P=bh[bh.length-1]||0;
+  const ma20=U.mean(bh.slice(-20)), ma50=U.mean(bh.slice(-50));
+  const ma50prev=U.mean(bh.slice(-55,-5))||ma50;
+  const vsMa20=U.pct(P,ma20);                                   // %
+  const ma50Slope=U.pct(ma50,ma50prev);
+  const ret7=bh.length>=8?U.pct(P,bh[bh.length-8]):0;
+  const ret30=bh.length>=31?U.pct(P,bh[bh.length-31]):0;
+  // eth/btc 7d
+  const ethbtcNow=(eh[eh.length-1]||0)/(P||1);
+  const ethbtcPrev=(eh[eh.length-8]||0)/(bh[bh.length-8]||1);
+  const ethBtc7=U.pct(ethbtcNow,ethbtcPrev);
+  // breadth: 전체 코인 7d 양전 비율
+  const all=Object.values(snap.coins).filter(c=>c.chg7d!=null);
+  const breadth=all.length?100*all.filter(c=>c.chg7d>0).length/all.length:50;
+  // btc 30d 변동성(일수익률 표준편차)
+  const rets=[];for(let i=1;i<bh.length;i++)rets.push((bh[i]/bh[i-1]-1)*100);
+  const vol=U.std(rets.slice(-30));
+  const dom=snap.global.btcDom||55;
+
+  // 서브 점수 0~100
+  const S={
+    trend:U.clamp(50+vsMa20*4 + ma50Slope*6),
+    ret:U.clamp(50+ret7*2.2+ret30*0.8),
+    ethbtc:U.clamp(50+ethBtc7*4),
+    mcap:U.clamp(50+(snap.global.mcapChg24||0)*6),
+    breadth:U.clamp(breadth),
+    vola:U.clamp(70-(vol-2)*10),             // 변동성↑ → 점수↓
+    dom:U.clamp(60-(dom-52)*3)               // 도미넌스↑ → 알트 불리
+  };
+  const score=U.clamp(
+    S.trend*.24+S.ret*.16+S.ethbtc*.15+S.mcap*.12+S.breadth*.16+S.vola*.09+S.dom*.08);
+  let regime="EXTREME_RISK";
+  if(score>=CFG.regime.on)regime="RISK_ON";
+  else if(score>=CFG.regime.neutral)regime="NEUTRAL";
+  else if(score>=CFG.regime.off)regime="RISK_OFF";
+  return {score,regime,sub:S,
+    btc:{price:P,vsMa20,ma50Slope,ret7,ret30,vol},ethBtc7,breadth,dom};
+}
+
+// 섹터 원지표 계산(정규화 전)
+function sectorRaw(sec,ctx){
+  const cs=sec.coins; const btc7=ctx.regime.btc.ret7, altMed=ctx.altMed7;
+  if(cs.length<CFG.minCoinsValid){
+    return {valid:false, nValid:cs.length, nAll:sec.nAll,
+      ret7:0,ret1:0,ret3:0,ret30:0,relBtc:0,relAlt:0,
+      volTotal:0,volMed:0,volMcap:0,volGrow:0,breadth1:50,breadth7:50,maUp:50,momSlope:0,rsi:50,
+      conc:1,vol30:0,dd:0,leaderCount:0,over90:false,rsImprove:0,idx:0};
+  }
+  const w=capWeights(cs);
+  const wavg=f=>U.sum(cs.map((c,i)=>w[i]*(f(c)||0)));
+  const ret1=wavg(c=>c.chg24h), ret3=wavg(c=>c.chg3d),
+        ret7=wavg(c=>c.chg7d), ret30=wavg(c=>c.chg30d);
+  const relBtc=ret7-btc7, relAlt=ret7-altMed;
+  const volTotal=U.sum(cs.map(c=>c.vol24));
+  const volMed=U.median(cs.map(c=>c.vol24));
+  const mcapTot=U.sum(cs.map(c=>c.mcap))||1;
+  const volMcap=volTotal/mcapTot;
+  const conc=Math.max(...cs.map(c=>c.vol24))/(volTotal||1);
+  const breadth1=100*cs.filter(c=>c.chg24h>0).length/cs.length;
+  const breadth7=100*cs.filter(c=>c.chg7d>0).length/cs.length;
+  const maUp=100*cs.filter(c=>c.shortMAup).length/cs.length;
+  const momSlope=U.mean(cs.map(c=>c.spark?U.slope(c.spark.slice(-84)):c.chg7d*0.01));
+  const rsi=U.mean(cs.map(c=>c.rsi));
+  const vol30=U.mean(cs.map(c=>c.vol7d));
+  const dd=U.mean(cs.map(c=>{if(!c.spark)return Math.min(0,c.chg7d);
+    const mx=Math.max(...c.spark);return U.pct(c.spark[c.spark.length-1],mx);}));
+  // 대장 후보(유동성+시총) 상위 2 추세개선
+  const rank=[...cs].sort((a,b)=>(b.mcap+b.vol24)-(a.mcap+a.vol24)).slice(0,2);
+  const leaderCount=rank.filter(c=>c.chg7d>btc7).length;
+  const over90=breadth1>=90;
+  // 이전 스냅샷 대비 거래량 증가율
+  const prev=ctx.prev?.[sec.slug];
+  const volGrow=prev&&prev.volTotal?U.pct(volTotal,prev.volTotal):0;
+  const idx=100*(1+ret7/100); // 상대 지수(기준100)
+  return {valid:true,nValid:cs.length,nAll:sec.nAll,ret1,ret3,ret7,ret30,relBtc,relAlt,
+    volTotal,volMed,volMcap,volGrow,conc,breadth1,breadth7,maUp,
+    momSlope,rsi,vol30,dd,leaderCount,over90,idx,
+    // ERS용: RS 개선(스파크 전/후반 상대강도 기울기 부호전환 근사)
+    rsImprove: U.mean(cs.map(c=>{
+      if(!c.spark||c.spark.length<120)return relBtc*0.02;
+      const n=c.spark.length, h1=c.spark.slice(0,n>>1), h2=c.spark.slice(n>>1);
+      return (U.slope(h2)/(U.mean(h2)||1))-(U.slope(h1)/(U.mean(h1)||1));
+    }))
+  };
+}
+
+// 정규화(횡단면 백분위 + winsor) 후 SSS/ERS/Risk/Overheat/Opportunity/Confidence/State
+function computeSectors(snap){
+  const regime=calcMarketRegime(snap);
+  const allCoins=Object.values(snap.coins).filter(c=>c.chg7d!=null);
+  const altMed7=U.median(allCoins.map(c=>c.chg7d));
+  const prev=getJSON("ar_prev_metrics",{});
+  const ctx={regime,altMed7,prev};
+  const secs=buildSectorMembers(snap);
+  const raws=secs.map(s=>({sec:s, r:sectorRaw(s,ctx)}));
+
+  // 정규화 헬퍼: 특정 필드의 횡단면 백분위
+  const valids=raws.filter(x=>x.r.valid);
+  const col=f=>U.winsor(valids.map(x=>f(x.r)),...CFG.winsor);
+  const norm=(v,arr,invert=false)=>{const p=U.pctRank(v,arr);return invert?100-p:p;};
+
+  const c_ret=col(r=>r.ret1*.15+r.ret3*.2+r.ret7*.3+r.ret30*.15+r.relBtc*.1+r.relAlt*.1);
+  const c_vol=col(r=>Math.log10(1+r.volMcap*100)+ (r.volGrow>0?Math.log10(1+r.volGrow):0));
+  const c_breadth=col(r=>r.breadth1*.3+r.breadth7*.35+r.maUp*.35);
+  const c_mom=col(r=>r.momSlope*100 + (r.rsi-50)*0.4);
+  const c_liq=col(r=>Math.log10(1+r.volTotal)+Math.log10(1+r.volMed)-(r.conc>0.5?r.conc:0));
+  const c_persist=col(r=>{const p=prev?.[r.__slug];return 0;}); // 지속성은 아래 rank로 별도
+
+  raws.forEach(x=>{
+    const r=x.r, slug=x.sec.slug;
+    if(!r.valid){x.scores=null;return;}
+    const relN=norm(r.ret1*.15+r.ret3*.2+r.ret7*.3+r.ret30*.15+r.relBtc*.1+r.relAlt*.1,c_ret);
+    const volN=norm(Math.log10(1+r.volMcap*100)+(r.volGrow>0?Math.log10(1+r.volGrow):0),c_vol);
+    const brN=norm(r.breadth1*.3+r.breadth7*.35+r.maUp*.35,c_breadth);
+    const momN=norm(r.momSlope*100+(r.rsi-50)*0.4,c_mom);
+    const liqN=norm(Math.log10(1+r.volTotal)+Math.log10(1+r.volMed)-(r.conc>0.5?r.conc:0),c_liq);
+    // 지속성: 이전 스냅샷 순위 상승 여부
+    const prevRank=prev?.[slug]?.rank;
+    const persistN=prevRank==null?50:U.clamp(50 + (prevRank>0?10:-10)); // 초기 중립
+
+    const sss=U.clamp(relN*.30+volN*.20+brN*.20+momN*.15+liqN*.10+persistN*.05);
+
+    // ERS 구성
+    const rsImpN=norm(r.rsImprove,col(rr=>rr.rsImprove));
+    const volAccN=U.clamp(50+ r.volGrow*2 + (r.volMcap>0.1?15:0));
+    const brExpN=U.clamp(50 + (r.breadth7-50)*.5 + (r.maUp-50)*.4);
+    const leaderN=r.leaderCount>=2?85:r.leaderCount===1?55:30;
+    const noOverN=U.clamp(100 - Math.max(0,r.rsi-60)*2 - Math.max(0,r.ret7-20)*1.5 - (r.over90?20:0));
+    const ers=U.clamp(rsImpN*.25+volAccN*.25+brExpN*.20+leaderN*.15+noOverN*.15);
+
+    // Risk / Overheat
+    const risk=U.clamp(
+      norm(r.vol30,col(rr=>rr.vol30))*.25 +
+      norm(-r.dd,col(rr=>-rr.dd))*.2 +
+      norm(r.conc,col(rr=>rr.conc))*.2 +
+      (r.nValid<5?18:0) +
+      norm(1/(r.volTotal||1),col(rr=>1/(rr.volTotal||1)))*.15
+    ); // 국면 감점은 riskAdj에서 별도 반영
+    const riskAdj=U.clamp(risk*0.8 + (regime.regime==="RISK_OFF"?12:regime.regime==="EXTREME_RISK"?22:0)
+      + (x.sec.nValid<CFG.early.minCoins?10:0));
+    const overheat=U.clamp(
+      Math.max(0,r.rsi-55)*2.2 + Math.max(0,r.ret7-15)*2 +
+      (r.over90?20:0) + Math.max(0,r.ret30-40)*0.6 + (r.volGrow<-20&&r.ret7>10?12:0));
+
+    // Regime 적합도 / 국내관심
+    const regimeFit={RISK_ON:82,NEUTRAL:58,RISK_OFF:32,EXTREME_RISK:14}[regime.regime];
+    const korea=koreaScore(x.sec);
+
+    const riskPenalty=Math.max(0,riskAdj-55)*0.25;
+    const overPenalty=Math.max(0,overheat-50)*0.30;
+    const opp=U.clamp(ers*.45+sss*.25+regimeFit*.20+korea*.10 - riskPenalty - overPenalty);
+
+    // 신뢰도
+    const dataComplete=100*r.nValid/x.sec.nAll;
+    const agree=100-U.std([relN,volN,brN,momN])*1.1;
+    const histAvail=prevRank!=null?100:55;
+    const confRaw=U.clamp(dataComplete*.3 + U.clamp(r.nValid*11)*.2 + agree*.25 + histAvail*.25);
+    const conf=confRaw;
+
+    // 상태
+    const state=classifyState({sss,ers,overheat,riskAdj,r,regime});
+
+    x.scores={sss,ers,risk:riskAdj,overheat,opp,conf,regimeFit,korea,state,
+      comp:{relN,volN,brN,momN,liqN,persistN,rsImpN,volAccN,brExpN,leaderN,noOverN},
+      raw:r};
+  });
+
+  // 순위 부여 + 지속성 저장
+  const scored=raws.filter(x=>x.scores);
+  const bySSS=[...scored].sort((a,b)=>b.scores.sss-a.scores.sss);
+  bySSS.forEach((x,i)=>x.scores.rankSSS=i+1);
+  // 이전 대비 순위변화 저장
+  const nextPrev={};
+  scored.forEach(x=>{
+    const pr=prev?.[x.sec.slug];
+    const rankDelta=pr&&pr.rankSSS?pr.rankSSS-x.scores.rankSSS:0;
+    x.scores.rankDelta=rankDelta;
+    nextPrev[x.sec.slug]={rankSSS:x.scores.rankSSS,volTotal:x.scores.raw.volTotal,
+      opp:x.scores.opp,rank:rankDelta};
+  });
+  setJSON("ar_prev_metrics",nextPrev);
+
+  return {regime,sectors:raws,asOf:snap.asOf,source:snap.source,upbit:snap.upbit};
+}
+
+function koreaScore(sec){
+  const listed=sec.coins.filter(c=>c.krwListed);
+  if(!listed.length)return 45;                       // 데이터 없음 → 중립하한
+  const ratio=100*listed.length/sec.coins.length;
+  const prems=listed.map(c=>c.premium).filter(x=>x!=null);
+  const avgPrem=prems.length?U.mean(prems):0;
+  return U.clamp(45 + ratio*0.25 + U.clamp(avgPrem*8,-15,20));
+}
+
+function classifyState({sss,ers,overheat,riskAdj,r,regime}){
+  if(overheat>=68 && r.ret7>12) return "OVERHEATED";
+  if(sss>=62 && r.breadth1<50 && r.ret7>8) return "DISTRIBUTION";
+  if(ers>=CFG.early.ersMin && sss>=CFG.early.sssLo && sss<=CFG.early.sssHi &&
+     overheat<CFG.early.overMax && r.momSlope>0) return "EARLY";
+  if(sss>=65 && r.breadth7>=55) return "STRONG";
+  if(r.ret7>-4 && r.ret7<4 && r.breadth7>=40 && sss<55) return "BASE";
+  return "WEAK";
+}
+
+// 초기후보 조건 충족 여부(스펙 §13)
+function isEarlyCandidate(sc){
+  const r=sc.raw;
+  return sc.ers>=CFG.early.ersMin && sc.sss>=CFG.early.sssLo && sc.sss<=CFG.early.sssHi &&
+    sc.overheat<CFG.early.overMax && sc.risk<CFG.early.riskMax &&
+    r.nValid>=CFG.early.minCoins && r.momSlope>0 && r.leaderCount>=2 && sc.conf>=40;
+}
+
+/* 섹터 내 코인 분류(스펙 §14) */
+function classifyCoins(sec,ctx){
+  const cs=sec.coins; if(!cs.length)return[];
+  const btc7=ctx.regime.btc.ret7;
+  const secRet7=U.mean(cs.map(c=>c.chg7d));
+  const scored=cs.map(c=>{
+    const relSec=c.chg7d-secRet7, relBtc=c.chg7d-btc7;
+    const liq=c.vol24, trend=c.spark?U.slope(c.spark.slice(-84)):c.chg7d*0.01;
+    const score=relSec*0.4+relBtc*0.3+(c.shortMAup?8:-8)+(c.rsi>50?5:-5);
+    return {c,relSec,relBtc,trend,score};
+  });
+  const byLiq=[...scored].sort((a,b)=>(b.c.mcap+b.c.vol24)-(a.c.mcap+a.c.vol24));
+  const leader=byLiq[0];
+  return scored.map(x=>{
+    let role="후발";
+    if(x.c.vol24< U.median(cs.map(c=>c.vol24))*0.15) role="유동성부족";
+    else if(x===leader) role="대장";
+    else if(x.c.rsi>72 && x.c.chg7d>18) role="과열";
+    else if(x.c.chg7d<-6 && x.trend<0) role="약세";
+    else if(x.relBtc>0 && x.trend>0 && x.c.rsi<60) role="초기전환";
+    else if(x.relSec>0 && x.c.chg7d>0) role="강세동행";
+    return {...x,role};
+  }).sort((a,b)=>b.score-a.score);
+}
+
+/* 설명 생성(계산 결과 기반 템플릿, 스펙 §24) */
+function explain(x){
+  const sc=x.scores, r=sc.raw, comp=sc.comp, ko=x.sec.ko;
+  const pos=[],neg=[];
+  const push=(arr,metric,impact,desc)=>arr.push({metric,impact,desc});
+  if(r.relBtc>0) push(pos,"relBtc",comp.relN*.3/10,`BTC 대비 7일 초과수익률 ${U.sign(r.relBtc)}${U.fmt(r.relBtc)}%p`);
+  if(r.rsImprove>0) push(pos,"rsSlope",8,`상대강도 기울기가 개선(전반→후반 가속)`);
+  if(r.volGrow>10) push(pos,"volGrow",6,`직전 대비 거래량 ${U.sign(r.volGrow)}${U.fmt(r.volGrow,0)}% 증가`);
+  if(r.breadth7>55) push(pos,"breadth",6,`구성코인 ${U.fmt(r.breadth7,0)}%가 7일 상승(섹터 전반 확산)`);
+  if(r.leaderCount>=2) push(pos,"leader",5,`대장급 2종목 이상 동반 개선`);
+  if(sc.rankDelta>0) push(pos,"rank",4,`SSS 순위 ${sc.rankDelta}단계 상승`);
+
+  if(r.conc>0.5) push(neg,"conc",-(r.conc*10),`거래량의 ${U.fmt(r.conc*100,0)}%가 1종목에 집중`);
+  if(r.rsi>65) push(neg,"rsi",-(r.rsi-60)*0.3,`단기 RSI ${U.fmt(r.rsi,0)} — 과열 구간 근접`);
+  if(r.ret7>20) push(neg,"surge",-4,`7일 ${U.fmt(r.ret7,0)}% 급등 — 추격 부담`);
+  if(r.nValid<CFG.early.minCoins) push(neg,"nCoins",-6,`유효 코인 ${r.nValid}개(데이터 부족)`);
+  if(r.vol30>6) push(neg,"vola",-4,`변동성 높음(주간 σ ${U.fmt(r.vol30)}%)`);
+  if(sc.state==="OVERHEATED") push(neg,"over",-5,`과열 상태 — 신규 진입 위험`);
+
+  pos.sort((a,b)=>b.impact-a.impact); neg.sort((a,b)=>a.impact-b.impact);
+  // 무효화 조건
+  const inval=[];
+  inval.push(`BTC 대비 7일 상대강도가 다시 음전`);
+  if(sc.state==="EARLY") inval.push(`구성코인 상승비율이 40% 아래로 축소`);
+  inval.push(`섹터 거래량이 7일 평균 아래로 이탈`);
+  return {pos,neg,inval,
+    summary:`${ko} 섹터는 ${sc.state==="EARLY"?"강세 전환 초기 신호가 관측":sc.state==="STRONG"?"강세가 확인":sc.state==="OVERHEATED"?"과열 구간에 진입":"관찰이 필요한 국면"}됩니다. `+
+      `7일 수익률 ${U.sign(r.ret7)}${U.fmt(r.ret7)}%, BTC 대비 ${U.sign(r.relBtc)}${U.fmt(r.relBtc)}%p, `+
+      `구성코인의 ${U.fmt(r.breadth7,0)}%가 상승 중입니다.`};
+}
+
+/* ============================================================================
+   RENDER
+   ========================================================================== */
+let SNAP=null, RESULT=null, MODE=(getJSON("ar_mode","MOCK"));
+const $=s=>document.querySelector(s), el=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;};
+const cv=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+// 점수→heat 색(색맹 안전: 청→틸→앰버, 숫자 병기)
+function heat(v){ // 0~100
+  const stops=[[0,"#3b4a63"],[40,"#2f6f78"],[60,"#18b8a6"],[78,"#f2a33c"],[100,"#f97316"]];
+  for(let i=1;i<stops.length;i++){if(v<=stops[i][0]){
+    const [x0,c0]=stops[i-1],[x1,c1]=stops[i];const t=(v-x0)/(x1-x0||1);
+    return mix(c0,c1,t);}}
+  return stops[stops.length-1][1];
+}
+function mix(a,b,t){const p=x=>[1,3,5].map(i=>parseInt(x.slice(i,i+2),16));
+  const A=p(a),B=p(b);return"#"+A.map((v,i)=>Math.round(v+(B[i]-v)*t).toString(16).padStart(2,"0")).join("");}
+function stateColor(s){return cv(STATE_META[s].c);}
+function pctSpan(v,d=1){const cls=v>0?"num-up":v<0?"num-dn":"";const a=v>0?"▲":v<0?"▼":"·";
+  return `<span class="${cls} mono">${a}${U.fmt(Math.abs(v),d)}%</span>`;}
+
+function confDots(v){ // 0~100 → 5칸
+  const n=Math.round(v/20);let h="";for(let i=0;i<5;i++)h+=`<i class="${i<n?'on':''}"></i>`;
+  const lbl=["매우낮음","낮음","보통","높음","매우높음"][Math.max(0,Math.min(4,n-1))]||"매우낮음";
+  return `<span class="conf" title="신뢰도 ${lbl}">${h}</span>`;}
+
+function stateBadge(s){const m=STATE_META[s];
+  return `<span class="state-pill" style="background:${hexA(cv(m.c),.16)};color:${cv(m.c)}">${m.ic} ${m.ko}</span>`;}
+function hexA(hex,a){const p=x=>parseInt(hex.slice(x,x+2),16);
+  return`rgba(${p(1)},${p(3)},${p(5)},${a})`;}
+
+function render(){
+  const app=$("#app"); app.innerHTML="";
+  const {regime,sectors}=RESULT;
+  const scored=sectors.filter(x=>x.scores);
+
+  app.appendChild(regimeBar(regime));
+
+  const early=scored.filter(x=>isEarlyCandidate(x.scores))
+    .sort((a,b)=>b.scores.opp-a.scores.opp);
+  const strong=[...scored].sort((a,b)=>b.scores.sss-a.scores.sss).slice(0,5);
+  const over=scored.filter(x=>x.scores.state==="OVERHEATED"||x.scores.overheat>=60)
+    .sort((a,b)=>b.scores.overheat-a.scores.overheat);
+  const weak=scored.filter(x=>["WEAK","DISTRIBUTION"].includes(x.scores.state))
+    .sort((a,b)=>a.scores.sss-b.scores.sss).slice(0,5);
+
+  if(regime.regime==="EXTREME_RISK"||regime.regime==="RISK_OFF"){
+    app.appendChild(el("div","warn",
+      `<span>⚠</span><div>현재 시장 국면이 <b>${regime.regime==="EXTREME_RISK"?"극단적 위험회피":"위험회피"}</b>입니다. `+
+      `신규 관심 신호보다 <b>현금 비중 유지·분할 관찰</b>을 우선하세요. 초기 후보 점수는 국면 감점이 적용됩니다.</div>`));
+  }
+
+  // 강세 전환 초기 후보
+  app.appendChild(secTitle("강세 전환 초기 후보", `ERS ${CFG.early.ersMin}+ · 비과열 · 데이터 신뢰도 보통↑`));
+  const eg=el("div","grid g5");
+  if(early.length){early.slice(0,5).forEach(x=>eg.appendChild(earlyCard(x)));}
+  else eg.appendChild(el("div","disc","현재 조건을 충족하는 강세 전환 초기 후보가 없습니다. 시장 폭이 확장되고 거래량이 유입될 때 후보가 나타납니다."));
+  app.appendChild(eg);
+
+  // 현재 강한 섹터
+  app.appendChild(secTitle("현재 강한 섹터 TOP 5", "섹터 강도 점수(SSS) 기준"));
+  const sg=el("div","grid g5"); strong.forEach(x=>sg.appendChild(strongCard(x))); app.appendChild(sg);
+
+  // 로테이션 레이더 (시그니처)
+  app.appendChild(secTitle("섹터 로테이션 레이더", "X=상대강도, Y=상대강도 변화, 크기=거래대금"));
+  app.appendChild(rotationRadar(scored,regime));
+
+  // 히트맵
+  app.appendChild(secTitle("섹터 히트맵", "색+숫자 병기 · 색각이상 대응"));
+  app.appendChild(heatmap(scored));
+
+  // 과열 / 약화
+  const two=el("div","grid g2");
+  two.appendChild(listPanel("과열 주의 섹터", over.slice(0,5), "overheat", "추격 진입 위험"));
+  two.appendChild(listPanel("약화·분배 섹터", weak, "sss", "상대강도 하락 전환"));
+  app.appendChild(two);
+
+  app.appendChild(methodology());
+  app.appendChild(disclaimer());
+
+  updateSrcBadge();
+}
+
+function secTitle(t,sub){
+  const e=el("div"); e.appendChild(el("p","eyebrow",`${t}<span class="rule"></span>${sub?`<span style="color:var(--txt3);font-weight:500;letter-spacing:0;text-transform:none">${sub}</span>`:""}`));
+  return e;
+}
+
+function regimeBar(rg){
+  const wrap=el("section"); const box=el("div","regime");
+  const meta={RISK_ON:["위험선호","--early"],NEUTRAL:["중립","--base"],
+    RISK_OFF:["위험회피","--dist"],EXTREME_RISK:["극단적 위험회피","--danger"]}[rg.regime];
+  const needle=rg.score;
+  box.innerHTML=`
+   <div class="regime-top">
+     <div class="regime-badge" style="background:${hexA(cv(meta[1]),.16)};color:${cv(meta[1])}">
+       ${meta[0]}</div>
+     <div class="rg-score">${U.fmt(rg.score,0)}<small>/100</small></div>
+     <div class="gauge">
+       <div class="gauge-track">
+         <div class="gauge-fill-mask" style="width:${100-needle}%"></div>
+         <div class="gauge-needle" style="left:calc(${needle}% - 1px)"></div>
+       </div>
+       <div class="gauge-lbls"><span>극단위험 0</span><span>25</span><span>45</span><span>70</span><span>100 위험선호</span></div>
+     </div>
+   </div>
+   <div class="regime-metrics">
+     ${rm("BTC 24h/7d",`${pctSpan(rg.btc.ret7/7*1)} ${pctSpan(rg.btc.ret7)}`,true)}
+     ${rm("BTC vs 20일선",pctSpan(rg.btc.vsMa20))}
+     ${rm("50일선 기울기",pctSpan(rg.btc.ma50Slope,2))}
+     ${rm("ETH/BTC 7d",pctSpan(rg.ethBtc7))}
+     ${rm("알트 상승비율",`<span class="mono">${U.fmt(rg.breadth,0)}%</span>`)}
+     ${rm("BTC 도미넌스",`<span class="mono">${U.fmt(rg.dom,1)}%</span>`)}
+     ${rm("BTC 변동성",`<span class="mono">${U.fmt(rg.btc.vol,1)}%</span>`)}
+   </div>
+   <div class="regime-note">시장 국면 점수는 BTC 추세·수익률·ETH/BTC·시총추세·시장폭·변동성·도미넌스를 가중합해 산출합니다. ${rg.regime==="RISK_ON"?"알트 섹터 회전에 우호적인 환경입니다.":rg.regime==="NEUTRAL"?"선별적 접근이 필요한 구간입니다.":"방어적 대응이 우선입니다."}</div>`;
+  wrap.appendChild(box); return wrap;
+}
+function rm(k,v){return `<div class="rm"><div class="k">${k}</div><div class="v">${v}</div></div>`;}
+
+function earlyCard(x){
+  const sc=x.scores, ex=explain(x), leads=topCoins(x,3);
+  const c=el("div","card"); c.onclick=()=>openDetail(x);
+  c.innerHTML=`
+    ${starBtn(x.sec.slug)}
+    <div class="card-h"><div><div class="sec-name">${x.sec.ko}</div>
+      <div class="sec-sub">${x.sec.en} · 유효 ${sc.raw.nValid}/${x.sec.nAll}</div></div></div>
+    <div style="margin-top:10px">${stateBadge(sc.state)}</div>
+    <div class="opp"><div class="opp-row"><span class="opp-lbl">기회 점수</span>
+      <span class="opp-lbl">${confDots(sc.conf)}</span></div>
+      <div class="opp-val" style="color:${heat(sc.opp)}">${U.fmt(sc.opp,0)}</div>
+      <div class="heatbar"><i style="width:${sc.opp}%;background:${heat(sc.opp)}"></i></div></div>
+    <div class="mini-metrics">
+      <div class="mm">ERS <b>${U.fmt(sc.ers,0)}</b></div>
+      <div class="mm">SSS <b>${U.fmt(sc.sss,0)}</b></div>
+      <div class="mm">과열 <b>${U.fmt(sc.overheat,0)}</b></div>
+      <div class="mm">위험 <b>${U.fmt(sc.risk,0)}</b></div></div>
+    <div class="reasons"><ul>
+      ${ex.pos.slice(0,3).map(f=>`<li class="r-pos"><span class="ic">＋</span><span>${f.desc}</span></li>`).join("")}
+      ${ex.neg.slice(0,2).map(f=>`<li class="r-neg"><span class="ic">－</span><span>${f.desc}</span></li>`).join("")}
+    </ul></div>
+    <div class="lead-coins">${leads.map(t=>`<span class="chip"><b>${t.c.symbol}</b> ${pctSpan(t.c.chg7d,0)}</span>`).join("")}</div>
+    <div class="invalid">무효화: ${ex.inval[0]}</div>`;
+  return c;
+}
+
+function strongCard(x){
+  const sc=x.scores;
+  const c=el("div","card"); c.onclick=()=>openDetail(x);
+  c.innerHTML=`
+    ${starBtn(x.sec.slug)}
+    <div class="card-h"><div><div class="sec-name">${x.sec.ko}</div>
+      <div class="sec-sub">SSS 순위 #${sc.rankSSS}${sc.rankDelta?` <span class="${sc.rankDelta>0?'num-up':'num-dn'}">${sc.rankDelta>0?'▲':'▼'}${Math.abs(sc.rankDelta)}</span>`:''}</div></div>
+      ${stateBadge(sc.state)}</div>
+    <div class="opp"><div class="opp-row"><span class="opp-lbl">섹터 강도 SSS</span><span class="opp-lbl">${confDots(sc.conf)}</span></div>
+      <div class="opp-val" style="color:${heat(sc.sss)}">${U.fmt(sc.sss,0)}</div>
+      <div class="heatbar"><i style="width:${sc.sss}%;background:${heat(sc.sss)}"></i></div></div>
+    <div class="mini-metrics">
+      <div class="mm">7일 <b>${U.sign(sc.raw.ret7)}${U.fmt(sc.raw.ret7,0)}%</b></div>
+      <div class="mm">vsBTC <b>${U.sign(sc.raw.relBtc)}${U.fmt(sc.raw.relBtc,0)}</b></div>
+      <div class="mm">상승비율 <b>${U.fmt(sc.raw.breadth7,0)}%</b></div>
+      <div class="mm">기회 <b>${U.fmt(sc.opp,0)}</b></div></div>`;
+  return c;
+}
+
+function listPanel(title,items,key,sub){
+  const p=el("div","card"); p.style.cursor="default";
+  p.innerHTML=`<div class="sec-name" style="margin-bottom:2px">${title}</div>
+    <div class="sec-sub" style="margin-bottom:10px">${sub}</div>`;
+  if(!items.length){p.appendChild(el("div","sec-sub","해당 섹터 없음"));return p;}
+  items.forEach(x=>{
+    const sc=x.scores, v=sc[key];
+    const row=el("div"); row.style.cssText="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line);cursor:pointer";
+    row.onclick=()=>openDetail(x);
+    row.innerHTML=`<div style="flex:1"><b>${x.sec.ko}</b> ${stateBadge(sc.state)}</div>
+      <div class="mono" style="color:${key==='overheat'?heat(v):'var(--txt2)'};font-weight:700">${U.fmt(v,0)}</div>
+      <div style="width:70px" class="heatbar"><i style="width:${v}%;background:${key==='overheat'?heat(v):'var(--dn)'}"></i></div>`;
+    p.appendChild(row);
+  });
+  return p;
+}
+
+function heatmap(scored){
+  const wrap=el("section"); const box=el("div","hm-wrap");
+  const cols=[["1일","ret1"],["3일","ret3"],["7일","ret7"],["30일","ret30"],
+    ["SSS","sss"],["ERS","ers"],["위험","risk"],["과열","overheat"],["상태","state"]];
+  let h=`<table class="hm"><thead><tr><th>섹터</th>${cols.map(c=>`<th>${c[0]}</th>`).join("")}</tr></thead><tbody>`;
+  [...scored].sort((a,b)=>b.scores.opp-a.scores.opp).forEach(x=>{
+    const sc=x.scores;
+    h+=`<tr><td class="nm">${x.sec.ko}</td>`;
+    cols.forEach(([lbl,k])=>{
+      if(k==="state"){h+=`<td><div style="padding:6px 8px">${stateBadge(sc.state)}</div></td>`;return;}
+      let v,disp,bg;
+      if(["ret1","ret3","ret7","ret30"].includes(k)){
+        v=sc.raw[k]; disp=`${U.sign(v)}${U.fmt(v,1)}`;
+        const t=U.clamp(50+v*3);bg=hexA(v>=0?cv("--up"):cv("--dn"),Math.min(.4,Math.abs(v)/40+.05));
+      }else{v=sc[k];disp=U.fmt(v,0);
+        bg=hexA(k==="risk"||k==="overheat"?cv("--hot"):cv("--teal"),v/260);}
+      h+=`<td class="cell" style="background:${bg}">${disp}</td>`;
+    });
+    h+=`</tr>`;
+  });
+  h+=`</tbody></table>`; box.innerHTML=h; wrap.appendChild(box); return wrap;
+}
+
+function rotationRadar(scored,regime){
+  const wrap=el("section"); const box=el("div","radar-box");
+  const W=700,H=440,pad=44;
+  const xs=scored.map(x=>x.scores.raw.relBtc);
+  const ys=scored.map(x=>x.scores.raw.rsImprove*1000);
+  const xmax=Math.max(8,...xs.map(Math.abs)), ymax=Math.max(4,...ys.map(Math.abs));
+  const X=v=>pad+((v+xmax)/(2*xmax))*(W-2*pad);
+  const Y=v=>H-pad-((v+ymax)/(2*ymax))*(H-2*pad);
+  const vols=scored.map(x=>x.scores.raw.volTotal);
+  const vmax=Math.max(...vols,1);
+  const R=v=>8+Math.sqrt(v/vmax)*26;
+  let s=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">`;
+  // 사분면 배경
+  s+=`<rect x="${X(0)}" y="${pad}" width="${W-pad-X(0)}" height="${Y(0)-pad}" fill="${hexA(cv('--early'),.05)}"/>`;
+  s+=`<rect x="${pad}" y="${pad}" width="${X(0)-pad}" height="${Y(0)-pad}" fill="${hexA(cv('--base'),.05)}"/>`;
+  // 축
+  s+=`<line x1="${X(0)}" y1="${pad}" x2="${X(0)}" y2="${H-pad}" stroke="${cv('--line2')}" stroke-dasharray="3 3"/>`;
+  s+=`<line x1="${pad}" y1="${Y(0)}" x2="${W-pad}" y2="${Y(0)}" stroke="${cv('--line2')}" stroke-dasharray="3 3"/>`;
+  // 사분면 라벨
+  const ql=[[W-pad-6,pad+16,"강세 지속","end"],[pad+6,pad+16,"초기 개선","start"],
+    [pad+6,H-pad-8,"약세 지속","start"],[W-pad-6,H-pad-8,"약화","end"]];
+  ql.forEach(([x,y,t,a])=>s+=`<text x="${x}" y="${y}" fill="${cv('--txt3')}" font-size="11" text-anchor="${a}">${t}</text>`);
+  s+=`<text x="${W/2}" y="${H-10}" fill="${cv('--txt3')}" font-size="10" text-anchor="middle">← 약함   BTC 대비 상대강도   강함 →</text>`;
+  s+=`<text x="14" y="${H/2}" fill="${cv('--txt3')}" font-size="10" text-anchor="middle" transform="rotate(-90 14 ${H/2})">← 둔화   상대강도 변화   개선 →</text>`;
+  // 버블
+  scored.forEach(x=>{
+    const sc=x.scores, cx=X(U.clamp(sc.raw.relBtc,-xmax,xmax)),cy=Y(U.clamp(sc.raw.rsImprove*1000,-ymax,ymax));
+    const col=stateColor(sc.state), r=R(sc.raw.volTotal);
+    const opa=0.35+ (1-sc.risk/100)*0.45;
+    s+=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${hexA(col,opa)}" stroke="${col}" stroke-width="1.4"/>`;
+    s+=`<text x="${cx}" y="${cy+3}" fill="${cv('--txt')}" font-size="10" font-weight="600" text-anchor="middle">${x.sec.ko}</text>`;
+  });
+  s+=`</svg>`;
+  box.innerHTML=s;
+  const lg=el("div","radar-legend");
+  lg.innerHTML=Object.entries(STATE_META).map(([k,m])=>
+    `<span><span class="dot" style="background:${cv(m.c)}"></span>${m.ic} ${m.ko}</span>`).join("")+
+    `<span style="color:var(--txt3)">· 버블 크기=거래대금, 진할수록 위험 낮음</span>`;
+  box.appendChild(lg);
+  wrap.appendChild(box); return wrap;
+}
+
+function topCoins(x,n){
+  const ctx={regime:RESULT.regime};
+  return classifyCoins(x.sec,ctx).slice(0,n);
+}
+function starBtn(slug){
+  const wl=getJSON("ar_watch",[]); const on=wl.includes(slug);
+  return `<button class="star ${on?'on':''}" data-slug="${slug}" onclick="toggleStar(event,'${slug}')" title="관심 섹터">${on?'★':'☆'}</button>`;
+}
+window.toggleStar=(e,slug)=>{e.stopPropagation();let wl=getJSON("ar_watch",[]);
+  wl=wl.includes(slug)?wl.filter(s=>s!==slug):[...wl,slug];setJSON("ar_watch",wl);render();};
+
+/* ---------- detail modal ---------- */
+function openDetail(x){
+  const sc=x.scores, ex=explain(x), ctx={regime:RESULT.regime};
+  const coins=classifyCoins(x.sec,ctx);
+  const roleColor={대장:"--strong",강세동행:"--early",초기전환:"--teal",후발:"--txt3",
+    과열:"--over",약세:"--dist",유동성부족:"--weak"};
+  const m=$("#modal");
+  m.innerHTML=`
+   <div class="modal-h">
+     <div><h2>${x.sec.ko} <span style="font-size:13px;color:var(--txt3);font-weight:500">${x.sec.en}</span></h2>
+       <div style="margin-top:6px">${stateBadge(sc.state)} ${confDots(sc.conf)} <span class="sec-sub">유효 코인 ${sc.raw.nValid}/${x.sec.nAll}</span></div></div>
+     <button class="x" onclick="closeModal()">×</button>
+   </div>
+   <p style="color:var(--txt2);font-size:13px;margin:6px 0 0">${ex.summary}</p>
+   <div class="kv-grid">
+     ${kv("기회 점수",U.fmt(sc.opp,0),heat(sc.opp))}
+     ${kv("ERS",U.fmt(sc.ers,0))}${kv("SSS",U.fmt(sc.sss,0))}
+     ${kv("위험",U.fmt(sc.risk,0))}${kv("과열",U.fmt(sc.overheat,0))}
+     ${kv("국내관심",U.fmt(sc.korea,0))}
+   </div>
+   <div class="sub-h">점수 근거 (계산 결과 기반)</div>
+   <div class="factors">
+     <div class="fbox"><h4>▲ 점수를 올린 요인</h4>${ex.pos.length?ex.pos.map(f=>frow(f,true)).join(""):'<div class="sec-sub">–</div>'}</div>
+     <div class="fbox"><h4>▼ 점수를 낮춘 요인</h4>${ex.neg.length?ex.neg.map(f=>frow(f,false)).join(""):'<div class="sec-sub">–</div>'}</div>
+   </div>
+   <div class="sub-h">섹터 지표</div>
+   <div class="kv-grid">
+     ${kv("1일",U.sign(sc.raw.ret1)+U.fmt(sc.raw.ret1,1)+"%")}
+     ${kv("3일",U.sign(sc.raw.ret3)+U.fmt(sc.raw.ret3,1)+"%")}
+     ${kv("7일",U.sign(sc.raw.ret7)+U.fmt(sc.raw.ret7,1)+"%")}
+     ${kv("30일",U.sign(sc.raw.ret30)+U.fmt(sc.raw.ret30,1)+"%")}
+     ${kv("vs BTC",U.sign(sc.raw.relBtc)+U.fmt(sc.raw.relBtc,1))}
+     ${kv("상승비율",U.fmt(sc.raw.breadth7,0)+"%")}
+     ${kv("거래집중",U.fmt(sc.raw.conc*100,0)+"%")}
+     ${kv("변동성",U.fmt(sc.raw.vol30,1)+"%")}
+   </div>
+   <div class="sub-h">구성 코인 (${coins.length})</div>
+   <div style="overflow-x:auto"><table class="coin-tbl">
+     <thead><tr><th>코인</th><th>구분</th><th>가격</th><th>24h</th><th>7d</th><th>거래대금</th><th>RSI</th><th>KRW</th></tr></thead>
+     <tbody>${coins.map(t=>`<tr>
+       <td><b>${t.c.symbol}</b></td>
+       <td><span class="role" style="background:${hexA(cv(roleColor[t.role]||'--txt3'),.16)};color:${cv(roleColor[t.role]||'--txt3')}">${t.role}</span></td>
+       <td>${U.usd(t.c.price)}</td>
+       <td>${pctSpan(t.c.chg24h,1)}</td>
+       <td>${pctSpan(t.c.chg7d,1)}</td>
+       <td>${U.usd(t.c.vol24)}</td>
+       <td>${U.fmt(t.c.rsi,0)}</td>
+       <td>${t.c.krwListed?(t.c.premium!=null?`<span class="${t.c.premium>0?'num-up':'num-dn'}">${U.sign(t.c.premium)}${U.fmt(t.c.premium,1)}%</span>`:'✓'):'–'}</td>
+     </tr>`).join("")}</tbody></table></div>
+   <div class="sub-h">신호 무효화 조건</div>
+   <ul style="margin:0;padding-left:18px;color:var(--txt2);font-size:12.5px">
+     ${ex.inval.map(i=>`<li>${i}</li>`).join("")}</ul>
+   <div class="foot" style="border-top:none;margin-top:16px">
+     본 섹터 신호는 데이터 분석 참고자료이며 투자 권유나 수익 보장이 아닙니다. 점수는 스냅샷 시점 계산 결과이며 무효화 조건 충족 시 재평가됩니다.</div>`;
+  $("#overlay").classList.add("open"); document.body.style.overflow="hidden";
+}
+function kv(k,v,color){return `<div class="kv"><div class="k">${k}</div><div class="v" ${color?`style="color:${color}"`:""}>${v}</div></div>`;}
+function frow(f,pos){return `<div class="frow"><span class="d">${f.desc}</span><span class="i ${pos?'num-up':'num-dn'}">${pos?'+':''}${U.fmt(f.impact,1)}</span></div>`;}
+window.closeModal=()=>{$("#overlay").classList.remove("open");document.body.style.overflow="";};
+$("#overlay").addEventListener("click",e=>{if(e.target.id==="overlay")closeModal();});
+
+function methodology(){
+  const s=el("section","method");
+  s.appendChild(el("p","eyebrow",`방법론 및 한계<span class="rule"></span>`));
+  s.innerHTML+=`
+  <details><summary>점수 체계는 어떻게 계산되나요?</summary>
+    <p>섹터 지수는 <b>시가총액 가중(개별 20% 상한, 초과분 재분배)</b>으로 계산합니다. 각 구성요소는 14개 섹터 간 <b>횡단면 백분위</b>로 0~100 정규화하고, 5·95분위 Winsorization으로 극단값 영향을 줄입니다.</p>
+    <p>SSS = 상대수익률·30% + 거래량·20% + 시장폭·20% + 모멘텀·15% + 유동성·10% + 지속성·5%.<br>
+       Opportunity = ERS·45% + SSS·25% + 국면적합도·20% + 국내관심·10% − 위험감점 − 과열감점.</p>
+  </details>
+  <details><summary>무료 데이터의 한계 (반드시 확인)</summary>
+    <p>CoinGecko 무료 티어는 <b>월 호출 상한(~1만)·1년 일봉·2,000코인·OHLCV 미제공</b> 제약이 있습니다. 이에 따라 본 앱은:</p>
+    <ul>
+      <li>시장 데이터는 <code>/coins/markets</code> 상위 500종목 배치(2콜)로 받아 <b>실시간이 아닌 스냅샷</b>으로 처리합니다.</li>
+      <li>일부 지표(3일 수익률·단기 RSI·변동성·이평 이격)는 7일 시간봉 스파크라인에서 <b>근사</b>합니다. "30일 변동성"은 주간 실현변동성 프록시로 대체 표기됩니다.</li>
+      <li>거래량 증가율·순위 지속성 등 <b>시계열 델타는 이전 스냅샷과 비교</b>합니다. 첫 실행 시에는 중립 처리되고 신뢰도가 낮게 표시됩니다. (2회차부터 정상화)</li>
+      <li>상위 500위 밖 코인(예: GRASS·GEOD·DIMO·WAL 등)은 데이터 부족으로 자동 제외될 수 있으며, 섹터 상세의 "유효 코인 수"에 반영됩니다.</li>
+    </ul>
+  </details>
+  <details><summary>국내 데이터(업비트)</summary>
+    <p>업비트 공개 API로 KRW 상장 여부와 김치프리미엄을 <b>best-effort</b>로 보강합니다. CORS·네트워크 문제로 실패하면 국내관심 점수는 중립(45)으로 처리되고 나머지 기능은 정상 작동합니다.</p>
+  </details>
+  <details><summary>백테스트가 없는 이유</summary>
+    <p>스펙의 백테스트는 130여 종목의 장기 OHLCV와 <b>과거 시점의 섹터 구성 스냅샷</b>이 필요합니다. 무료 티어로는 확보 불가하고 과거 구성 데이터는 존재하지 않아, 생존편향 없는 백테스트를 만들 수 없습니다. 유료 API(예: CoinGecko Pro) 또는 자체 수집 서버(Cloudflare Worker + DB로 매일 스냅샷 적재)를 붙이면 별도 버전으로 구현 가능합니다.</p>
+  </details>`;
+  return s;
+}
+function disclaimer(){
+  const s=el("section");
+  s.appendChild(el("div","disc",
+    `본 서비스가 제공하는 정보와 신호는 데이터 분석을 위한 참고 자료이며 투자 권유 또는 수익 보장을 의미하지 않습니다. 가상자산은 높은 변동성과 원금 손실 위험이 있습니다. 투자 판단과 책임은 사용자 본인에게 있습니다.`));
+  const f=el("div","foot",
+    `AltSector Radar · 데이터: CoinGecko(글로벌)·Upbit(국내, best-effort) · 표시 시각은 Asia/Seoul 기준 · 정적 클라이언트 앱(서버 없음).`);
+  s.appendChild(f); return s;
+}
+
+/* ---------- src badge / mode ---------- */
+function updateSrcBadge(){
+  const b=$("#srcBadge"); const src=RESULT.source;
+  const kst=new Date(RESULT.asOf).toLocaleString("ko-KR",{timeZone:"Asia/Seoul",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"});
+  let color=src==="COINGECKO"?"--early":"--warm", label=src==="COINGECKO"?"실데이터":"Mock 모드";
+  const up=RESULT.upbit?" · 업비트✓":"";
+  b.innerHTML=`<span class="dot" style="background:${cv(color)}"></span>${label} · ${kst}${up}`;
+  $("#modeBtn").textContent=MODE==="LIVE"?"실데이터":"Mock";
+  $("#modeBtn").className="btn"+(MODE==="LIVE"?" on":"");
+}
+
+/* ---------- load ---------- */
+async function load(){
+  $("#app").innerHTML=`<div class="loading"><div class="spin"></div>${MODE==="LIVE"?"CoinGecko 실데이터 수집 중…":"Mock 데이터 준비 중…"}</div>`;
+  let snap;
+  if(MODE==="LIVE"){
+    try{
+      snap=await CoinGeckoAdapter.fetchAll();
+      if(Object.keys(snap.coins).length<20)throw new Error("insufficient");
+      try{snap=await enrichUpbit(snap);}catch(e){}
+    }catch(e){
+      console.warn("live fetch failed → mock",e);
+      snap=await MockAdapter.fetchAll();
+      snap.source="MOCK"; snap.fallbackFrom="LIVE";
+    }
+  }else{
+    snap=await MockAdapter.fetchAll();
+  }
+  SNAP=snap; RESULT=computeSectors(snap); render();
+  if(snap.fallbackFrom){
+    const w=el("div","warn"); w.innerHTML=`<span>ℹ</span><div>실데이터 수집에 실패해 <b>Mock 모드</b>로 표시 중입니다. (미리보기 환경의 네트워크 제한일 수 있습니다. GitHub Pages 배포 시 정상 작동합니다.)</div>`;
+    $("#app").insertBefore(w,$("#app").firstChild.nextSibling);
+  }
+}
+
+$("#reloadBtn").onclick=load;
+$("#modeBtn").onclick=()=>{MODE=MODE==="LIVE"?"MOCK":"LIVE";setJSON("ar_mode",MODE);load();};
+
+/* PWA: 인라인 매니페스트 + 서비스워커(단일파일 설치 지원) */
+(function pwa(){
+  try{
+    const man={name:"AltSector Radar",short_name:"AltRadar",display:"standalone",
+      background_color:"#0d1015",theme_color:"#0d1015",start_url:".",
+      icons:[{src:"data:image/svg+xml;base64,"+btoa('<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192"><rect width="192" height="192" fill="#0d1015"/><circle cx="96" cy="96" r="70" stroke="#18b8a6" stroke-width="8" fill="none"/><path d="M96 96 L150 54" stroke="#f2a33c" stroke-width="10" stroke-linecap="round"/><circle cx="132" cy="64" r="11" fill="#e5564e"/></svg>'),sizes:"192x192",type:"image/svg+xml"}]};
+    const mu=URL.createObjectURL(new Blob([JSON.stringify(man)],{type:"application/json"}));
+    const l=document.createElement("link");l.rel="manifest";l.href=mu;document.head.appendChild(l);
+    if("serviceWorker"in navigator&&location.protocol==="https:"){
+      const sw=`self.addEventListener("install",e=>self.skipWaiting());
+        self.addEventListener("activate",e=>self.clients.claim());
+        self.addEventListener("fetch",e=>{});`;
+      const su=URL.createObjectURL(new Blob([sw],{type:"text/javascript"}));
+      navigator.serviceWorker.register(su).catch(()=>{});
+    }
+  }catch(e){}
+})();
+
+load();
+</script>
+</body>
+</html>

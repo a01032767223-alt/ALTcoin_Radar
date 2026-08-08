@@ -178,8 +178,55 @@
   .method details{border:1px solid var(--line);border-radius:10px;background:var(--bg2);padding:2px 14px;margin-bottom:8px}
   .method summary{cursor:pointer;padding:11px 0;font-weight:600;font-size:13px}
   .method p,.method li{font-size:12px;color:var(--txt2);line-height:1.55}
-  .warn{background:#2a1d15;border:1px solid #6b3f1c;color:#f0b878;border-radius:10px;
-    padding:10px 13px;font-size:12px;margin-bottom:14px;display:flex;gap:8px}
+  /* ---------- 알트시즌 게이트 ---------- */
+  .gatebox{border:1px solid var(--line);border-radius:14px;background:var(--bg2);
+    margin-bottom:14px;overflow:hidden}
+  .gatebox>summary{cursor:pointer;list-style:none;padding:16px 16px 14px}
+  .gatebox>summary::-webkit-details-marker{display:none}
+  .gatebox>summary:focus-visible{outline:2px solid var(--warm);outline-offset:-2px}
+  .gsum{display:grid;grid-template-columns:190px 1fr;gap:18px;align-items:center;position:relative}
+  .gsum::after{content:"조건 5개 펼쳐보기 ▾";position:absolute;right:0;bottom:-2px;
+    font-size:11px;color:var(--txt3);font-family:var(--mono)}
+  .gatebox[open] .gsum::after{content:"접기 ▴"}
+  .gsum-dial{max-width:190px}
+  .gg{width:100%;display:block}
+  .gsum-score{font-family:var(--mono);font-size:40px;font-weight:700;line-height:1;
+    letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+  .gsum-score small{font-size:15px;color:var(--txt3);font-weight:400}
+  .gsum-name{font-size:17px;font-weight:800;letter-spacing:-.02em;margin-top:3px}
+  .gsum-desc{color:var(--txt2);font-size:12.5px;margin-top:4px;line-height:1.5}
+  .gsum-pips{display:flex;align-items:center;gap:6px;margin-top:10px;
+    font-size:11.5px;color:var(--txt2);font-family:var(--mono);flex-wrap:wrap}
+  .gpip{width:20px;height:5px;border-radius:3px;background:var(--line2);display:inline-block}
+  .gpip.on{background:var(--up);box-shadow:0 0 8px rgba(229,86,78,.5)}
+  .gbody{border-top:1px solid var(--line);padding:14px 16px 6px}
+  .grow{display:grid;grid-template-columns:34px 1fr 150px;gap:14px;align-items:center;
+    padding:13px 0;border-bottom:1px solid var(--line)}
+  .grow:last-of-type{border-bottom:none}
+  .gnum{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;
+    font-family:var(--mono);font-size:12px;font-weight:700;
+    border:1.5px solid var(--line2);color:var(--txt3);background:var(--bg)}
+  .grow.pass .gnum{border-color:var(--up);color:var(--up);box-shadow:0 0 10px rgba(229,86,78,.28)}
+  .ginfo h4{margin:0 0 4px;font-size:13.5px;font-weight:700;letter-spacing:-.01em}
+  .grd{display:flex;flex-wrap:wrap;gap:3px 12px;font-family:var(--mono);font-size:12px;
+    font-variant-numeric:tabular-nums;margin-bottom:5px}
+  .grd .k{color:var(--txt3)}
+  .grd .v{font-weight:600;color:var(--txt)}
+  .gnote{margin:0;color:var(--txt2);font-size:12px;line-height:1.5}
+  .gthr{margin-top:5px;font-family:var(--mono);font-size:10.5px;color:var(--txt3)}
+  .gspark{display:block;margin-top:7px;width:100%;max-width:250px;height:30px}
+  .gdial{width:150px}
+  .gdnum{text-align:center;font-family:var(--mono);font-size:10.5px;color:var(--txt3);margin-top:-4px}
+  .gfoot{color:var(--txt3);font-size:11px;line-height:1.6;margin:12px 0 10px}
+  @media(max-width:640px){
+    .gsum{grid-template-columns:1fr;gap:6px;text-align:center}
+    .gsum-dial{max-width:200px;margin:0 auto}
+    .gsum::after{position:static;display:block;margin-top:8px}
+    .gsum-pips{justify-content:center}
+    .grow{grid-template-columns:34px 1fr;grid-template-areas:"n i" "g g";row-gap:6px}
+    .gnum{grid-area:n}.ginfo{grid-area:i}.gdial{grid-area:g;justify-self:center}
+  }
+  .warn{background:#2a1d15;border:1px solid #6b3f1c;color:#f0b878;border-radius:10px;    padding:10px 13px;font-size:12px;margin-bottom:14px;display:flex;gap:8px}
   .loading{text-align:center;padding:60px 20px;color:var(--txt3)}
   .spin{width:26px;height:26px;border:3px solid var(--line2);border-top-color:var(--teal);
     border-radius:50%;animation:sp 1s linear infinite;margin:0 auto 14px}
@@ -339,6 +386,42 @@ function deriveCoin(c){
   return {...c,spark,chg3d,vol7d,rsi,shortMAup};
 }
 
+/* ── 알트시즌 게이트: 원자료 산출 (추가 API 호출 없이 /coins/markets 응답 재사용) ── */
+const GATE_STABLE=new Set(["USDT","USDC","DAI","TUSD","FDUSD","USDE","USDS","USD1","PYUSD",
+  "BUSD","FRAX","USDD","GUSD","LUSD","CRVUSD","SUSDS","SUSDE","USDY","USDO","BUIDL","EURC"]);
+const GATE_DERIV=new Set(["WBTC","STETH","WSTETH","WETH","WEETH","CBBTC","RETH","METH",
+  "JITOSOL","MSOL","WBNB","WAVAX","SOLVBTC","LBTC","TBTC","CLBTC","BSC-USD","WHYPE","BNSOL"]);
+
+function buildGateRaw(rows){
+  let totalNow=0,total30=0,stableNow=0,stable30=0,btc=null;
+  const list=[];
+  for(const r of rows){
+    const cap=r.market_cap||0; if(cap<=0)continue;
+    const sym=(r.symbol||"").toUpperCase();
+    const ch=(typeof r.price_change_percentage_30d_in_currency==="number")
+      ? r.price_change_percentage_30d_in_currency : null;
+    const cap30=cap/(1+(ch||0)/100);
+    totalNow+=cap; total30+=cap30;
+    if(GATE_STABLE.has(sym)){stableNow+=cap;stable30+=cap30;}
+    if(r.id==="bitcoin")btc={cap,cap30,ch:ch||0,price:r.current_price,ath:r.ath_change_percentage};
+    list.push({sym,id:r.id,cap,ch});
+  }
+  if(!btc)return null;
+  // 확산도: 상위 100개 알트(스테이블·랩드/스테이킹 파생 제외)
+  let beat=0,sample=0;
+  for(const c of list){
+    if(sample>=100)break;
+    if(c.id==="bitcoin"||c.ch===null)continue;
+    if(GATE_STABLE.has(c.sym)||GATE_DERIV.has(c.sym))continue;
+    sample++; if(c.ch>btc.ch)beat++;
+  }
+  return {btcPrice:btc.price,btcAth:btc.ath,btcChg30:btc.ch,
+    domNow:btc.cap/totalNow*100, dom30:btc.cap30/total30*100,
+    totalChg30:(totalNow/total30-1)*100,
+    stableNow:stableNow/totalNow*100, stable30:stable30/total30*100, stableCap:stableNow,
+    beat,sample, altCap:totalNow-btc.cap-stableNow, universe:list.length};
+}
+
 const MockAdapter = {
   name:"MOCK",
   async fetchAll(){
@@ -368,9 +451,14 @@ const MockAdapter = {
     });
     // 글로벌/ BTC·ETH 히스토리
     const btcHist=[],ethHist=[]; let bp=95000,ep=3400;
-    for(let i=0;i<60;i++){bp*=1+(rnd()-.48)*.02;ep*=1+(rnd()-.48)*.024;btcHist.push(bp);ethHist.push(ep);}
+    for(let i=0;i<365;i++){bp*=1+(rnd()-.48)*.02;ep*=1+(rnd()-.48)*.024;btcHist.push(bp);ethHist.push(ep);}
     const glob={mcap:2.4e12,mcapChg24:(rnd()-.5)*4,btcDom:54+rnd()*4};
-    return {coins,global:glob,btcHist,ethHist,source:"MOCK",asOf:new Date().toISOString()};
+    const gDom=54+rnd()*4, gTot=(rnd()-.5)*14;
+    const gateRaw={btcPrice:btcHist[364],btcAth:-(rnd()*50),btcChg30:(rnd()-.5)*20,
+      domNow:gDom, dom30:gDom-(rnd()-.5)*2, totalChg30:gTot,
+      stableNow:8+rnd()*6, stable30:8+rnd()*6, stableCap:2.2e11,
+      beat:Math.round(rnd()*100), sample:100, altCap:7.5e11, universe:500};
+    return {coins,global:glob,btcHist,ethHist,gateRaw,source:"MOCK",asOf:new Date().toISOString()};
   }
 };
 
@@ -382,8 +470,8 @@ const CoinGeckoAdapter = {
     const [p1,p2,glob,btc,eth]=await Promise.all([
       jget(mk(1)), jget(mk(2)),
       jget(`${CFG.cgBase}/global`),
-      jget(`${CFG.cgBase}/coins/bitcoin/market_chart?vs_currency=usd&days=60&interval=daily`),
-      jget(`${CFG.cgBase}/coins/ethereum/market_chart?vs_currency=usd&days=60&interval=daily`)
+      jget(`${CFG.cgBase}/coins/bitcoin/market_chart?vs_currency=usd&days=365`),
+      jget(`${CFG.cgBase}/coins/ethereum/market_chart?vs_currency=usd&days=365`)
     ]);
     const rows=[...(p1||[]),...(p2||[])];
     const coins={};
@@ -408,7 +496,8 @@ const CoinGeckoAdapter = {
       btcDom:glob?.data?.market_cap_percentage?.btc
     };
     const H=x=>(x?.prices||[]).map(p=>p[1]);
-    return {coins,global:glo,btcHist:H(btc),ethHist:H(eth),source:"COINGECKO",asOf:new Date().toISOString()};
+    return {coins,global:glo,btcHist:H(btc),ethHist:H(eth),gateRaw:buildGateRaw(rows),
+      source:"COINGECKO",asOf:new Date().toISOString()};
   }
 };
 
@@ -556,6 +645,81 @@ function sectorRaw(sec,ctx){
 }
 
 // 정규화(횡단면 백분위 + winsor) 후 SSS/ERS/Risk/Overheat/Opportunity/Confidence/State
+/* ── 알트시즌 게이트: 5조건 점수 엔진 (순수 함수) ── */
+function computeGate(snap){
+  const g=snap.gateRaw; if(!g)return null;
+  const bh=snap.btcHist||[], eh=snap.ethHist||[];
+  const n=Math.min(bh.length,eh.length);
+  const eb=[]; for(let i=0;i<n;i++){ if(bh[i]>0)eb.push(eh[i]/bh[i]); }
+  const ethbtc=eb.length?eb[eb.length-1]:null;
+  let ma200=null, maSeries=[];
+  if(eb.length>=200){
+    let sum=0;
+    for(let i=0;i<eb.length;i++){sum+=eb[i]; if(i>=200)sum-=eb[i-200];
+      maSeries.push(i>=199?sum/200:null);}
+    ma200=maSeries[maSeries.length-1];
+  }else if(eb.length){ ma200=U.mean(eb); maSeries=eb.map(()=>null); }
+  const maShort = eb.length<200;   // 200일 미확보 → 신뢰도 낮음 표시
+
+  const C=v=>U.clamp(v,0,100);
+  const gates=[];
+
+  const drop=Math.abs(g.btcAth||0);
+  gates.push({n:"①",key:"btc",title:"비트코인 회복도",
+    score:C(100*(1-drop/50)), pass:drop<=15, thr:"ATH 대비 낙폭 15% 이내",
+    rows:[["BTC","$"+(g.btcPrice==null?"–":Math.round(g.btcPrice).toLocaleString("en-US")),0],["ATH 대비",U.fmt(g.btcAth,1)+"%",g.btcAth],
+          ["30일",U.sign(g.btcChg30)+U.fmt(g.btcChg30,1)+"%",g.btcChg30]],
+    note: drop<=15 ? "BTC가 전고점 부근입니다. 차익 자금이 알트로 넘어갈 토대가 있습니다."
+                   : `BTC가 전고점에서 ${U.fmt(drop,0)}% 아래입니다. 알트로 넘어갈 차익 자체가 없습니다.`});
+
+  const dev = (ethbtc&&ma200) ? (ethbtc/ma200-1)*100 : 0;
+  gates.push({n:"②",key:"ethbtc",title:"ETH/BTC 모멘텀",
+    score:C(50+dev*5), pass:dev>0, thr:"ETH/BTC가 200일 이동평균 위"+(maShort?" (기간 부족·참고용)":""),
+    series:eb, overlay:maSeries,
+    rows:[["ETH/BTC",ethbtc?ethbtc.toFixed(5):"—",0],["200일선",ma200?ma200.toFixed(5):"—",0],
+          ["이격",U.sign(dev)+U.fmt(dev,1)+"%",dev]],
+    note: dev>0 ? "ETH가 BTC를 앞서기 시작했습니다. 과거 알트 랠리는 이 구간 1~2개월 뒤에 왔습니다."
+                : "ETH가 아직 BTC에 밀립니다. 대장 알트가 못 움직이면 나머지도 못 움직입니다."});
+
+  const domDelta=g.domNow-g.dom30;
+  const s3=Math.min(C(50-domDelta*20), C(50+g.totalChg30*2.5));
+  gates.push({n:"③",key:"flow",title:"자금 순환",
+    score:s3, pass:domDelta<0&&g.totalChg30>0, thr:"도미넌스 하락과 총시총 상승이 동시에",
+    rows:[["BTC.D",U.fmt(g.domNow,1)+"%",0],["30일 변화",U.sign(domDelta)+U.fmt(domDelta,2)+"%p",domDelta],
+          ["총시총 30일",U.sign(g.totalChg30)+U.fmt(g.totalChg30,1)+"%",g.totalChg30]],
+    note:(domDelta<0&&g.totalChg30>0)?"도미넌스가 내리는 동시에 파이가 커집니다. 진짜 순환의 모습입니다."
+      :(domDelta<0?"도미넌스는 내렸지만 전체 시총이 줄었습니다. 알트가 이긴 게 아니라 BTC도 같이 빠진 겁니다."
+                 :"비트코인 점유율이 오히려 높아졌습니다. 자금이 BTC로 되돌아가는 중입니다.")});
+
+  const stDelta=g.stableNow-g.stable30;
+  gates.push({n:"④",key:"stable",title:"대기자금 투입",
+    score:C(50-stDelta*25), pass:stDelta<0, thr:"스테이블코인 점유율 하락",
+    rows:[["스테이블 점유율",U.fmt(g.stableNow,2)+"%",0],
+          ["30일 변화",U.sign(stDelta)+U.fmt(stDelta,2)+"%p",stDelta],
+          ["규모","$"+U.fmt(g.stableCap/1e9,0)+"B",0]],
+    note: stDelta<0 ? "스테이블 비중이 줄었습니다. 대기하던 돈이 실제로 시장에 들어오고 있습니다."
+                    : "스테이블 비중이 늘었습니다. 돈이 사이드라인으로 물러나는 방어 신호입니다."});
+
+  const breadth=g.sample?g.beat/g.sample*100:0;
+  gates.push({n:"⑤",key:"breadth",title:"알트 확산도",
+    score:C(breadth), pass:breadth>=75, thr:"상위 100개 알트 중 75% 이상 BTC 상회 (30일)",
+    rows:[["BTC 상회",`${g.beat}개 / ${g.sample}개`,breadth-50],
+          ["기준선 BTC 30일",U.sign(g.btcChg30)+U.fmt(g.btcChg30,1)+"%",g.btcChg30],
+          ["알트 시총","$"+U.fmt(g.altCap/1e9,0)+"B",0]],
+    note: breadth>=75 ? "상위 알트 대부분이 BTC를 이깁니다. 확산이 확인된 상태입니다."
+                      : `상위 100개 알트 중 ${g.beat}개만 BTC를 앞섭니다. 개별 강세일 뿐 순환은 아닙니다.`});
+
+  const W={btc:.25,ethbtc:.25,flow:.20,stable:.10,breadth:.20};
+  const composite=gates.reduce((a,x)=>a+x.score*W[x.key],0);
+  const V = composite>=75?["알트시즌 진행","확산이 확인된 국면입니다. 신규 진입보다 리스크 관리가 우선입니다."]
+    : composite>=60?["순환 개시","자금이 알트로 넘어오기 시작했습니다. 대형 알트부터 분할 검토 구간입니다."]
+    : composite>=40?["전환 탐색","조건이 엇갈립니다. 비중 확대보다 관찰 목록 정리가 맞습니다."]
+    : composite>=20?["알트 침체","비트코인 우위가 이어집니다. 알트 추가 매수 근거가 아직 없습니다."]
+    : ["비트코인 시즌","자금이 BTC로 쏠려 있습니다. 알트 비중 확대에 통계적으로 가장 불리한 구간입니다."];
+  return {gates,composite,verdict:V[0],desc:V[1],passed:gates.filter(x=>x.pass).length,
+    universe:g.universe, maShort};
+}
+
 function computeSectors(snap){
   const regime=calcMarketRegime(snap);
   const allCoins=Object.values(snap.coins).filter(c=>c.chg7d!=null);
@@ -651,7 +815,7 @@ function computeSectors(snap){
   });
   setJSON("ar_prev_metrics",nextPrev);
 
-  return {regime,sectors:raws,asOf:snap.asOf,source:snap.source,upbit:snap.upbit};
+  return {regime,sectors:raws,gate:computeGate(snap),asOf:snap.asOf,source:snap.source,upbit:snap.upbit};
 }
 
 function koreaScore(sec){
@@ -836,6 +1000,9 @@ function render(){
 
   app.appendChild(regimeBar(regime));
 
+  const gate=RESULT.gate;
+  if(gate)app.appendChild(gateStrip(gate));
+
   // 보유기간 고지(5순위) — 이 앱은 단기 회전 포착 도구임을 항상 노출
   app.appendChild(el("div","horizon-note",
     `<span>⏱</span><div>이 신호는 통상 <b>수일~수주 단위 섹터 회전</b>을 포착하기 위한 도구입니다. 장기 보유 판단의 근거로 쓰기보다는 단기 관찰용으로 활용하세요.</div>`));
@@ -876,6 +1043,11 @@ function render(){
 
   // 현재 강한 섹터
   app.appendChild(secTitle("현재 강한 섹터 TOP 5", "섹터 강도 점수(SSS) 기준"));
+  if(gate&&gate.composite<40&&strong.some(x=>x.scores.sss>=70)){
+    app.appendChild(el("div","warn",
+      `<span>⚠</span><div><b>순환이 아닐 수 있습니다.</b> 알트시즌 게이트가 ${U.fmt(gate.composite,0)}점(${gate.verdict})인데 `+
+      `아래 섹터의 강도만 높습니다. 시장 전체 자금 이동 없이 나타난 강세는 개별 재료성 급등일 확률이 높아, 되돌림이 빠릅니다.</div>`));
+  }
   const sg=el("div","grid g5"); strong.forEach(x=>sg.appendChild(strongCard(x))); app.appendChild(sg);
 
   // 로테이션 레이더 (시그니처)
@@ -896,6 +1068,81 @@ function render(){
   app.appendChild(disclaimer());
 
   updateSrcBadge();
+}
+
+/* ── 알트시즌 게이트 스트립 ── */
+function gateColor(s){ return s>=75?cv("--up"):s>=50?cv("--warm"):s>=25?cv("--weak"):cv("--dn"); }
+
+function gateGauge(score,big){
+  const R=78,CX=100,CY=100,L=Math.PI*R,v=U.clamp(score,0,100);
+  const ang=-90+v*1.8, col=gateColor(v), w=big?13:11;
+  let ticks="";
+  for(let t=0;t<=100;t+=12.5){
+    const a=(180-t*1.8)*Math.PI/180, r1=R+8, r2=(t%25===0)?R+15:R+12;
+    ticks+=`<line x1="${(CX+r1*Math.cos(a)).toFixed(1)}" y1="${(CY-r1*Math.sin(a)).toFixed(1)}" x2="${(CX+r2*Math.cos(a)).toFixed(1)}" y2="${(CY-r2*Math.sin(a)).toFixed(1)}" stroke="${t%25===0?cv("--line2"):cv("--line")}" stroke-width="1.4"/>`;
+  }
+  return `<svg class="gg" viewBox="0 0 200 ${big?124:116}" role="img" aria-label="점수 ${U.fmt(v,0)}점">${ticks}
+    <path d="M 22 100 A 78 78 0 0 1 178 100" fill="none" stroke="${cv("--bg3")}" stroke-width="${w}" stroke-linecap="round"/>
+    <path d="M 22 100 A 78 78 0 0 1 178 100" fill="none" stroke="${col}" stroke-width="${w}" stroke-linecap="round" stroke-dasharray="${(L*v/100).toFixed(2)} ${(L*2).toFixed(2)}"/>
+    <g style="transform:rotate(${ang.toFixed(2)}deg);transform-origin:100px 100px">
+      <line x1="100" y1="100" x2="100" y2="38" stroke="${col}" stroke-width="2.6" stroke-linecap="round"/>
+      <circle cx="100" cy="38" r="3" fill="${col}"/></g>
+    <circle cx="100" cy="100" r="6.5" fill="${cv("--bg")}" stroke="${col}" stroke-width="2"/></svg>`;
+}
+
+function gateSpark(series,overlay){
+  if(!series||series.length<8)return "";
+  const W=250,H=30,step=Math.max(1,Math.floor(series.length/120));
+  const s=series.filter((_,i)=>i%step===0), o=overlay?overlay.filter((_,i)=>i%step===0):null;
+  const all=s.concat(o?o.filter(v=>v!=null):[]);
+  const mn=Math.min(...all),mx=Math.max(...all),rg=(mx-mn)||1;
+  const path=a=>{let d="",st=false;a.forEach((v,i)=>{if(v==null||isNaN(v))return;
+    const x=(i/(a.length-1))*W,y=H-2-((v-mn)/rg)*(H-4);d+=(st?"L":"M")+x.toFixed(1)+" "+y.toFixed(1)+" ";st=true;});return d;};
+  const up=s[s.length-1]>=s[0];
+  return `<svg class="gspark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+    ${o?`<path d="${path(o)}" fill="none" stroke="${cv("--line2")}" stroke-width="1.2" stroke-dasharray="3 3"/>`:""}
+    <path d="${path(s)}" fill="none" stroke="${up?cv("--up"):cv("--dn")}" stroke-width="1.6"/></svg>`;
+}
+
+function gateStrip(g){
+  const wrap=el("section");
+  const d=el("details","gatebox"); if(getJSON("ar_gate_open",false))d.open=true;
+  d.addEventListener("toggle",()=>setJSON("ar_gate_open",d.open));
+  const col=gateColor(g.composite);
+  const pips=g.gates.map(x=>`<span class="gpip${x.pass?" on":""}" title="${x.title}"></span>`).join("");
+  const sum=el("summary");
+  sum.innerHTML=`<div class="gsum">
+      <div class="gsum-dial">${gateGauge(g.composite,true)}</div>
+      <div class="gsum-txt">
+        <p class="eyebrow" style="margin:0 0 4px">알트시즌 게이트<span class="rule"></span></p>
+        <div class="gsum-score" style="color:${col}">${U.fmt(g.composite,1)}<small>/100</small></div>
+        <div class="gsum-name">${g.verdict}</div>
+        <div class="gsum-desc">${g.desc}</div>
+        <div class="gsum-pips">${pips}<span>5개 조건 중 <b>${g.passed}개</b> 충족</span></div>
+      </div></div>`;
+  d.appendChild(sum);
+
+  const body=el("div","gbody");
+  g.gates.forEach(x=>{
+    const row=el("div","grow"+(x.pass?" pass":""));
+    row.innerHTML=`
+      <div class="gnum">${x.n}</div>
+      <div class="ginfo">
+        <h4>${x.title}</h4>
+        <div class="grd">${x.rows.map(r=>`<span class="k">${r[0]}</span><span class="v ${r[2]>0?"num-up":r[2]<0?"num-dn":""}">${r[1]}</span>`).join("")}</div>
+        <p class="gnote">${x.note}</p>
+        <div class="gthr">통과 기준 · ${x.thr}</div>
+        ${x.series?gateSpark(x.series,x.overlay):""}
+      </div>
+      <div class="gdial">${gateGauge(x.score)}<div class="gdnum">${U.fmt(x.score,0)} / 100</div></div>`;
+    body.appendChild(row);
+  });
+  body.appendChild(el("p","gfoot",
+    `가중치 ① 25 · ② 25 · ③ 20 · ④ 10 · ⑤ 20 · 표본 상위 ${g.universe}개 종목. `+
+    `공식 알트시즌 지수는 90일 기준이나 여기서는 무료 API 한도상 <b>30일 기준 자체 산출</b>이라 몇 포인트 차이가 납니다. `+
+    `표본은 2017·2021년 두 번뿐이라 법칙이 아니라 반복된 순서로 보세요.`));
+  d.appendChild(body);
+  wrap.appendChild(d); return wrap;
 }
 
 function secTitle(t,sub){
